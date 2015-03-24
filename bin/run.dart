@@ -36,6 +36,7 @@ main(List<String> args) async {
     }
   });
 
+  link.save();
   link.connect();
 
   timer = new Timer.periodic(new Duration(seconds: 15), (_) async {
