@@ -1,5 +1,7 @@
-name: dslink_platform
+name: dslink_system
 description: Control Machines
 dependencies:
   dslink:
     git: git://github.com/IOT-DSA/sdk-dslink-dart.git
+  syscall:
+    git: git://github.com/DirectMyFile/syscall.git

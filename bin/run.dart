@@ -4,11 +4,20 @@ import "dart:io";
 
 import "package:dslink/client.dart";
 import "package:dslink/responder.dart";
+import "package:syscall/syscall.dart" as sys;
 
 LinkProvider link;
 
 main(List<String> args) async {
-  link = new LinkProvider(args, "Platform-");
+  try {
+    sys.setUserId(0);
+  } catch (e) {
+    print("ERROR: You must run this under root.");
+    print("Try this: sudo dart bin/run.dart");
+    exit(1);
+  }
+
+  link = new LinkProvider(args, "System-");
 
   link.registerFunctions({
     "system.reboot": (path, params) {
@@ -95,56 +104,47 @@ Future<String> serializeNetworkState() async {
 }
 
 class System {
-  static Future shutdown() async {
-    if (Platform.isWindows) {
-      var process = await Process.start("shutdown", ["/s"]);
-      Future<int> exitCode = process.exitCode;
-      await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-        print("Failed to Shutdown.");
-      });
-    } else {
-      if (Platform.environment["USER"] != "root") {
-        var process = await Process.start("sudo", ["poweroff"]);
-        Future<int> exitCode = process.exitCode;
-        await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-          print("Failed to Shutdown.");
-          process.kill();
-        });
-      } else {
-        var process = await Process.start("poweroff", []);
-        Future<int> exitCode = process.exitCode;
-        await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-          print("Failed to Shutdown.");
-          process.kill();
-        });
+  static void reboot() {
+    withRoot(() {
+      var result = Process.runSync("reboot", []);
+
+      if (result.exitCode != 0) {
+        print("ERROR: Failed to reboot.");
       }
-    }
+    });
   }
 
-  static Future reboot() async {
-    if (Platform.isWindows) {
-      var process = await Process.start("shutdown", ["/r"]);
-      Future<int> exitCode = process.exitCode;
-      await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-        print("Failed to Reboot.");
-        process.kill();
-      });
-    } else {
-      if (Platform.environment["USER"] != "root") {
-        var process = await Process.start("sudo", ["reboot"]);
-        Future<int> exitCode = process.exitCode;
-        await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-          print("Failed to Reboot.");
-          process.kill();
-        });
-      } else {
-        var process = await Process.start("reboot", []);
-        Future<int> exitCode = process.exitCode;
-        await exitCode.timeout(new Duration(seconds: 5), onTimeout: () {
-          print("Failed to Reboot.");
-          process.kill();
-        });
+  static void shutdown() {
+    withRoot(() {
+      var result = Process.runSync(
+        Platform.isLinux ? "poweroff" : "shutdown",
+        Platform.isLinux ? [] : ["-h", "now"]
+      );
+
+      if (result.exitCode != 0) {
+        print("ERROR: Failed to shutdown. Exit Code: ${result.exitCode}");
+      }
+    });
+  }
+
+  static dynamic withRoot(handler()) {
+    var muid = sys.getUserId();
+
+    if (muid != 0) {
+      try {
+        sys.setUserId(0);
+      } catch (e) {
+        print("ERROR: Failed to gain superuser permissions.");
+        return null;
       }
     }
+
+    var value = handler();
+
+    if (muid != 0) {
+      sys.setUserId(muid);
+    }
+
+    return value;
   }
 }
