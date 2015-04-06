@@ -25,6 +25,12 @@ main(List<String> args) async {
     },
     "system.shutdown": (path, params) {
       System.shutdown();
+    },
+    "configure.network": (path, params) async {
+      var x = path.split("/");
+      x.removeLast();
+      var name = x.last;
+      await configureNetwork(name, params["ip"], params["netmask"]);
     }
   });
 
@@ -84,9 +90,30 @@ syncNetworkStuff() async {
         };
       }
 
+      m["Configure"] = {
+        r"$invokable": "write",
+        r"$function": "network.configure",
+        r"$params": {
+          r"ip": "string",
+          r"netmask": "string"
+        }
+      };
+
       link.provider.addNode("/Network Interfaces/${interface.name}", m);
     }
   }
+}
+
+configureNetwork(String interface, String ip, String netmask) async {
+  if (Platform.isWindows) {
+    throw new Exception("Unsupported on Windows");
+  }
+
+  return Process.run("ifconfig", ["eth0", ip, "netmask", netmask, "up"]).then((result) {
+    if (result.exitCode != 0) {
+      throw new Exception("Failed");
+    }
+  });
 }
 
 String _lastNetworkState;
