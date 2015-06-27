@@ -361,13 +361,14 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
         continue;
       }
 
-      if (line.trim().startsWith("Cell ")) {
+      if (line.trim().startsWith("Cell ") || line == lines.last) {
         var content = buff.join("\n");
         var regex = new RegExp(r'ESSID\:"(.*)"');
         var ssid = regex.firstMatch(content).group(1);
         var hasSecurity = content.contains("Encryption key:on");
         var network = new WifiNetwork(ssid, hasSecurity);
         networks.add(network);
+        buff.clear();
         continue;
       }
     }
