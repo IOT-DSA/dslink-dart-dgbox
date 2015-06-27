@@ -5,8 +5,6 @@ import "dart:io";
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
 
-import "package:syscall/syscall.dart" as sys;
-
 LinkProvider link;
 
 typedef Action(Map<String, dynamic> params);
@@ -28,12 +26,13 @@ addAction(handler) {
 }
 
 main(List<String> args) async {
-  try {
-    sys.setUserId(0);
-  } catch (e) {
-    print("ERROR: You must run this under root.");
-    print("Try this: sudo dart bin/run.dart");
-    exit(1);
+  {
+    var result = await Process.run("id", ["-u"]);
+
+    if (result.stdout.trim() != "0") {
+      print("This link must be run as the superuser.");
+      exit(0);
+    }
   }
 
   link = new LinkProvider(args, "DGBox-",
@@ -346,6 +345,34 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
 
     return networks;
   } else {
+    var result = await Process.run("iwlist", [interface, "scan"]);
+
+    if (result.exitCode != 0) {
+      return [];
+    }
+
+    List<String> lines = result.stdout.split("\n");
+    lines.removeAt(0);
+
+    var buff = [];
+    for (var line in lines) {
+      if (buff.isEmpty && line.trim().startsWith("Cell ")) {
+        continue;
+      }
+
+      var networks = [];
+      if (line.trim().startsWith("Cell ")) {
+        var content = buff.join("\n");
+        var regex = new RegExp(r'ESSID\:"(.*)"');
+        var ssid = regex.firstMatch(content).group(1);
+        var hasSecurity = content.contains("Encryption key:on");
+        var network = new WifiNetwork(ssid, hasSecurity);
+        networks.add(network);
+      }
+
+      return networks;
+    }
+
     return [];
   }
 }
@@ -361,47 +388,22 @@ class WifiNetwork {
 
 class System {
   static void reboot() {
-    withRoot(() {
-      var result = Process.runSync("reboot", []);
+    var result = Process.runSync("reboot", []);
 
-      if (result.exitCode != 0) {
-        print("ERROR: Failed to reboot.");
-      }
-    });
+    if (result.exitCode != 0) {
+      print("ERROR: Failed to reboot.");
+    }
   }
 
   static void shutdown() {
-    withRoot(() {
-      var result = Process.runSync(
+    var result = Process.runSync(
         isUnix ? "poweroff" : "shutdown",
         isUnix ? [] : ["-h", "now"]
-      );
+    );
 
-      if (result.exitCode != 0) {
-        print("ERROR: Failed to shutdown. Exit Code: ${result.exitCode}");
-      }
-    });
-  }
-
-  static dynamic withRoot(handler()) {
-    var muid = sys.getUserId();
-
-    if (muid != 0) {
-      try {
-        sys.setUserId(0);
-      } catch (e) {
-        print("ERROR: Failed to gain superuser permissions.");
-        return null;
-      }
+    if (result.exitCode != 0) {
+      print("ERROR: Failed to shutdown. Exit Code: ${result.exitCode}");
     }
-
-    var value = handler();
-
-    if (muid != 0) {
-      sys.setUserId(muid);
-    }
-
-    return value;
   }
 }
 
