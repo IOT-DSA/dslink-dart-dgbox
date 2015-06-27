@@ -357,6 +357,10 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
     var buff = [];
     var networks = [];
     for (var line in lines) {
+      if (line.trim().isEmpty) {
+        continue;
+      }
+
       if (buff.isEmpty && line.trim().startsWith("Cell ")) {
         continue;
       }
@@ -371,6 +375,8 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
         buff.clear();
         continue;
       }
+
+      buff.add(line);
     }
 
     return networks;
