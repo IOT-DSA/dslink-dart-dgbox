@@ -355,12 +355,12 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
     lines.removeAt(0);
 
     var buff = [];
+    var networks = [];
     for (var line in lines) {
       if (buff.isEmpty && line.trim().startsWith("Cell ")) {
         continue;
       }
 
-      var networks = [];
       if (line.trim().startsWith("Cell ")) {
         var content = buff.join("\n");
         var regex = new RegExp(r'ESSID\:"(.*)"');
@@ -368,12 +368,11 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
         var hasSecurity = content.contains("Encryption key:on");
         var network = new WifiNetwork(ssid, hasSecurity);
         networks.add(network);
+        continue;
       }
-
-      return networks;
     }
 
-    return [];
+    return networks;
   }
 }
 
