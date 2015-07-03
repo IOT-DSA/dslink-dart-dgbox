@@ -35,7 +35,7 @@ main(List<String> args) async {
     }
   }
 
-  link = new LinkProvider(args, "DGBox-",
+  link = new LinkProvider(args, "Host-",
     defaultNodes: {
       "Reboot": {
         r"$invokable": "write",
