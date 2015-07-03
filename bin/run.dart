@@ -64,9 +64,17 @@ main(List<String> args) async {
     "shutdown": addAction((Map<String, dynamic> params) {
       System.shutdown();
     }),
-    "configureNetwork": addAction((Path path, Map<String, dynamic> params) async {
+    "configureNetworkManual": addAction((Path path, Map<String, dynamic> params) async {
       var name = new Path(path.parentPath).name;
-      var result = await configureNetwork(name, params["ip"], params["netmask"]);
+      var result = await configureNetworkManual(name, params["ip"], params["netmask"], params["router"]);
+
+      return {
+        "success": result
+      };
+    }),
+    "configureNetworkAutomatic": addAction((Path path, Map<String, dynamic> params) async {
+      var name = new Path(path.parentPath).name;
+      var result = await configureNetworkAutomatic(name);
 
       return {
         "success": result
@@ -148,9 +156,23 @@ syncNetworkStuff() async {
         ]
       };
 
-      m["Configure"] = {
+      m["Configure_Automatically"] = {
+        r"$name": "Configure Automatically",
         r"$invokable": "write",
-        r"$is": "configureNetwork",
+        r"$is": "configureNetworkAutomatic",
+        r"$result": "values",
+        r"$columns": [
+          {
+            "name": "success",
+            "type": "bool"
+          }
+        ]
+      };
+
+      m["Configure_Manually"] = {
+        r"$name": "Configure Manually",
+        r"$invokable": "write",
+        r"$is": "configureNetworkManual",
         r"$params": [
           {
             "name": "ip",
@@ -158,6 +180,10 @@ syncNetworkStuff() async {
           },
           {
             "name": "netmask",
+            "type": "string"
+          },
+          {
+            "name": "gateway",
             "type": "string"
           }
         ],
@@ -284,14 +310,51 @@ Future<bool> isWifiInterface(String name) async {
   }
 }
 
-Future configureNetwork(String interface, String ip, String netmask) async {
+Future configureNetworkAutomatic(String interface) async {
+  if (Platform.isMacOS) {
+    var service = await getNetworkServiceForInterface(interface);
+    var args = ["-setdhcp", service];
+
+    return Process.run("networksetup", args).then((result) {
+      return result.exitCode == 0;
+    });
+  }
+
+  var resultA = await Process.run("ifconfig", [interface, "0.0.0.0", "0.0.0.0"]);
+  if (resultA.exitCode != 0) {
+    return false;
+  }
+
+  await Process.run("dhclient", ["-r", interface]);
+  var resultB = await Process.run("dhclient", [interface]);
+
+  return resultB.exitCode == 0;
+}
+
+Future configureNetworkManual(String interface, String ip, String netmask, String gateway) async {
   if (Platform.isWindows) {
     throw new Exception("Unsupported on Windows");
   }
 
-  return Process.run("ifconfig", [interface, ip, "netmask", netmask]).then((result) {
-    return result.exitCode == 0;
-  });
+  if (Platform.isMacOS) {
+    var service = await getNetworkServiceForInterface(interface);
+    var args = ["-setmanual", service, ip, netmask, gateway];
+
+    return Process.run("networksetup", args).then((result) {
+      return result.exitCode == 0;
+    });
+  }
+
+  await Process.run("killall", ["dhclient"]);
+
+  var resultA = await Process.run("route", ["add", "default", "gw", gateway, interface]);
+  if (resultA.exitCode != 0) {
+    return false;
+  }
+
+  var resultB = await Process.run("ifconfig", [interface, ip, "netmask", netmask]);
+
+  return resultB.exitCode == 0;
 }
 
 String _lastNetworkState;
@@ -330,6 +393,17 @@ Future<String> getWifiNetwork(String interface) async {
       }
     }
   }
+}
+
+Future<String> getNetworkServiceForInterface(String interface) async {
+  var result = await Process.run("networksetup", ["-listnetworkserviceorder"]);
+  List<String> lines = result.stdout.split("\n");
+  var results = {};
+  lines.where((x) => x.startsWith("(Hardware Port:")).forEach((x) {
+    var mn = x.substring(1, x.length - 1).split(",");
+    results[mn[1].split(":")[1].trim()] = mn[0].split(":")[1].trim();
+  });
+  return results[interface];
 }
 
 Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
