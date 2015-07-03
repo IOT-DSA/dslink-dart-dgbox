@@ -119,7 +119,9 @@ syncNetworkStuff() async {
 
   var nameservers = (await getCurrentNameServers()).join(",");
 
-  link.updateValue("/Name_Servers", nameservers);
+  if (nameservers.isNotEmpty) {
+    link.updateValue("/Name_Servers", nameservers);
+  }
 
   if (_lastNetworkState == null || ns != _lastNetworkState) {
     _lastNetworkState = ns;
@@ -223,7 +225,7 @@ Future<bool> setWifiNetwork(String interface, String ssid, String password) asyn
       args.add(password);
     }
 
-    var result = await Process.run("networksetup", ["-setairportnetwork", interface, ssid]);
+    var result = await Process.run("networksetup", args);
 
     if (result.exitCode != 0) {
       return false;
@@ -231,7 +233,19 @@ Future<bool> setWifiNetwork(String interface, String ssid, String password) asyn
 
     return true;
   } else {
-    return false;
+    var args = [interface, "essid", ssid];
+
+    if (password != null && password.isNotEmpty) {
+      args.addAll(["key", password]);
+    }
+
+    var result = await Process.run("iwconfig", args);
+
+    if (result.exitCode != 0) {
+      return false;
+    }
+
+    return true;
   }
 }
 
@@ -417,6 +431,11 @@ bool get isUnix => Platform.isLinux || Platform.isMacOS;
 
 Future<List<String>> getCurrentNameServers() async {
   var file = new File("/etc/resolv.conf");
+
+  if (!(await file.exists())) {
+    return [];
+  }
+
   var lines = (await file.readAsLines())
     .map((x) => x.trim())
     .where((x) => x.isNotEmpty && !x.startsWith("#")).toList();
