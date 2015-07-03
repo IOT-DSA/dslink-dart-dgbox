@@ -5,6 +5,8 @@ import "dart:io";
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
 
+import "package:dslink_system/utils.dart";
+
 LinkProvider link;
 
 typedef Action(Map<String, dynamic> params);
@@ -25,6 +27,42 @@ addAction(handler) {
   };
 }
 
+verifyDependencies() async {
+  if (!Platform.isLinux) {
+    return;
+  }
+
+  List<String> tools = [
+    "hostapd"
+  ];
+
+  var missing = false;
+
+  for (var tool in tools) {
+    if (await findExecutable(tool) == null) {
+      missing = true;
+      print("Missing Dependency: ${tool}");
+    }
+  }
+
+  if (missing) {
+    print("Please install these tools before continuing.");
+    exit(1);
+  }
+
+  if (await findExecutable("hotspotd") == null) {
+    var result = await exec("python2", args: [
+      "tools/hotspotd/setup.py",
+      "install"
+    ], workingDirectory: "tools/hotspotd", writeToBuffer: true);
+    if (result.exitCode != 0) {
+      print("Failed to install hotspotd:");
+      stdout.write(result.output);
+      exit(1);
+    }
+  }
+}
+
 main(List<String> args) async {
   {
     var result = await Process.run("id", ["-u"]);
@@ -33,6 +71,8 @@ main(List<String> args) async {
       print("This link must be run as the superuser.");
       exit(0);
     }
+
+    await verifyDependencies();
   }
 
   link = new LinkProvider(args, "Host-",

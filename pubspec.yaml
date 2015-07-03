@@ -3,3 +3,4 @@ description: Control Machines
 dependencies:
   dslink:
     git: git://github.com/IOT-DSA/sdk-dslink-dart.git
+  path: any
