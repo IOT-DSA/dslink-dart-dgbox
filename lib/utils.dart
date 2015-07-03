@@ -131,10 +131,9 @@ Future<BetterProcessResult> exec(
 
     if (raf != null) {
       await raf.writeln("[${currentTimestamp}] == Exited with status ${code} ==");
+      await raf.flush();
+      await raf.close();
     }
-
-    await raf.flush();
-    await raf.close();
 
     return new BetterProcessResult(
         pid,
