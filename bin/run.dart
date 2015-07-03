@@ -52,7 +52,7 @@ verifyDependencies() async {
 
   if (await findExecutable("hotspotd") == null) {
     var result = await exec("python2", args: [
-      "tools/hotspotd/setup.py",
+      "setup.py",
       "install"
     ], workingDirectory: "tools/hotspotd", writeToBuffer: true);
     if (result.exitCode != 0) {
