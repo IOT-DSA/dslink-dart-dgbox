@@ -63,6 +63,17 @@ verifyDependencies() async {
   }
 }
 
+String generateHotspotDaemonConfig(String wifi, String internet, String ssid, String ip, String netmask, String password) {
+  return JSON.encode({
+    "wlan": wifi,
+    "inet": internet,
+    "SSID": ssid,
+    "ip": ip,
+    "netmask": netmask,
+    "password": password
+  });
+}
+
 main(List<String> args) async {
   {
     var result = await Process.run("id", ["-u"]);
@@ -96,6 +107,44 @@ main(List<String> args) async {
         r"$name": "Nameservers",
         r"$type": "string",
         "?value": (await getCurrentNameServers()).join(",")
+      },
+      "Configure_Hotspot": {
+        r"$name": "Configure Hotspot",
+        r"$is": "configureHotspot",
+        r"$invokable": "write",
+        r"$params": [
+          {
+            "name": "wifi",
+            "type": "enum[]"
+          },
+          {
+            "name": "internet",
+            "type": "enum[]"
+          },
+          {
+            "name": "ssid",
+            "type": "string"
+          },
+          {
+            "name": "password",
+            "type": "string"
+          },
+          {
+            "name": "ip",
+            "type": "string"
+          }
+        ],
+        r"$result": "values",
+        r"$columns": [
+          {
+            "name": "success",
+            "type": "bool"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
       }
     }, profiles: {
     "reboot": addAction((Map<String, dynamic> params) {
@@ -147,6 +196,46 @@ main(List<String> args) async {
       return {
         "success": await setWifiNetwork(name, ssid, password)
       };
+    }),
+    "configureHotspot": addAction((Path path, Map<String, dynamic> params) async {
+      var ssid = params["ssid"];
+      var password = params["password"];
+      var wifi = params["wifi"];
+      var internet = params["internet"];
+      var ip = params["ip"];
+
+      if (wifi == internet) {
+        return {
+          "success": false,
+          "message": "Hotspot Interface cannot be the same as the Internet Interface"
+        };
+      }
+
+      var config = generateHotspotDaemonConfig(wifi, internet, ssid, ip, "255.255.255.0", password);
+
+      var file = new File("hotspotd.json");
+      if (!(await file.exists())) {
+        await file.create(recursive: true);
+      }
+
+      await file.writeAsString(config);
+    }),
+    "getHotspotConfiguration": addAction((Path path, Map<String, dynamic> params) async {
+      var m = [];
+      var file = new File("hotspotd.json");
+      if (!(await file.exists())) {
+        return [];
+      }
+
+      var json = JSON.decode(await file.readAsString());
+      for (var key in json.keys) {
+        m.add({
+          "key": key.toLowerCase(),
+          "value": json["value"]
+        });
+      }
+
+      return m;
     })
   }, autoInitialize: false);
 
@@ -180,8 +269,13 @@ syncNetworkStuff() async {
       inode.removeChild(child);
     }
 
+    var wifis = [];
+    var names = [];
+
     for (NetworkInterface interface in interfaces) {
       var m = {};
+
+      names.add(interface.name);
 
       m["Get_Addresses"] = {
         r"$name": "Get Addresses",
@@ -237,6 +331,7 @@ syncNetworkStuff() async {
       };
 
       if (await isWifiInterface(interface.name)) {
+        wifis.add(interface.name);
         m["Scan_Wifi_Networks"] = {
           r"$name": "Scan WiFi Networks",
           r"$invokable": "write",
@@ -280,6 +375,9 @@ syncNetworkStuff() async {
 
       link.addNode("/Network_Interfaces/${interface.name}", m);
     }
+
+    (link["Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
+    (link["Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(interfaces);
   }
 }
 
