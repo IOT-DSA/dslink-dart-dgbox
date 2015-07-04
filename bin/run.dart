@@ -123,103 +123,103 @@ main(List<String> args) async {
           }
         ]
       },
-      "Start_Hotspot": {
-        r"$name": "Start Hotspot",
-        r"$is": "startHotspot",
-        r"$invokable": "write",
-        r"$result": "values"
-      },
-      "Stop_Hotspot": {
-        r"$name": "Stop Hotspot",
-        r"$is": "stopHotspot",
-        r"$invokable": "write",
-        r"$result": "values"
-      },
-      "Restart_Hotspot": {
-        r"$name": "Restart Hotspot",
-        r"$is": "restartHotspot",
-        r"$invokable": "write",
-        r"$result": "values"
-      },
-      "Get_Hotspot_Status": {
-        r"$name": "Get Hotspot Status",
-        r"$is": "getHotspotStatus",
-        r"$invokable": "write",
-        r"$result": "values",
-        r"$columns": [
-          {
-            "name": "up",
-            "type": "bool"
-          }
-        ]
-      },
-      "Get_Hotspot_Settings": {
-        r"$name": "Get Hotspot Settings",
-        r"$is": "getHotspotConfiguration",
-        r"$invokable": "write",
-        r"$columns": [
-          {
-            "name": "key",
-            "type": "string"
-          },
-          {
-            "name": "value",
-            "type": "string"
-          }
-        ],
-        r"$result": "table"
-      },
-      "Configure_Hotspot": {
-        r"$name": "Configure Hotspot",
-        r"$is": "configureHotspot",
-        r"$invokable": "write",
-        r"$params": [
-          {
-            "name": "wifi",
-            "type": "enum[]"
-          },
-          {
-            "name": "internet",
-            "type": "enum[]"
-          },
-          {
-            "name": "ssid",
-            "type": "string",
-            "default": "DSA"
-          },
-          {
-            "name": "password",
-            "type": "string"
-          },
-          {
-            "name": "ip",
-            "type": "string",
-            "default": "192.168.42.1"
-          }
-        ],
-        r"$result": "values",
-        r"$columns": [
-          {
-            "name": "success",
-            "type": "bool"
-          },
-          {
-            "name": "message",
-            "type": "string"
-          }
-        ]
-      },
-      "Network_Interfaces": {
-        r"$name": "Network Interfaces"
-      },
-      "Name_Servers": {
-        r"$name": "Nameservers",
-        r"$type": "string",
-        "?value": (await getCurrentNameServers()).join(",")
-      },
-      "Hostname": {
-        r"$type": "string",
-        "?value": Platform.localHostname
+      "Network": {
+        r"$name": "Network",
+        "Start_Hotspot": {
+          r"$name": "Start Hotspot",
+          r"$is": "startHotspot",
+          r"$invokable": "write",
+          r"$result": "values"
+        },
+        "Stop_Hotspot": {
+          r"$name": "Stop Hotspot",
+          r"$is": "stopHotspot",
+          r"$invokable": "write",
+          r"$result": "values"
+        },
+        "Restart_Hotspot": {
+          r"$name": "Restart Hotspot",
+          r"$is": "restartHotspot",
+          r"$invokable": "write",
+          r"$result": "values"
+        },
+        "Get_Hotspot_Status": {
+          r"$name": "Get Hotspot Status",
+          r"$is": "getHotspotStatus",
+          r"$invokable": "write",
+          r"$result": "values",
+          r"$columns": [
+            {
+              "name": "up",
+              "type": "bool"
+            }
+          ]
+        },
+        "Get_Hotspot_Settings": {
+          r"$name": "Get Hotspot Settings",
+          r"$is": "getHotspotConfiguration",
+          r"$invokable": "write",
+          r"$columns": [
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ],
+          r"$result": "table"
+        },
+        "Configure_Hotspot": {
+          r"$name": "Configure Hotspot",
+          r"$is": "configureHotspot",
+          r"$invokable": "write",
+          r"$params": [
+            {
+              "name": "wifi",
+              "type": "enum[]"
+            },
+            {
+              "name": "internet",
+              "type": "enum[]"
+            },
+            {
+              "name": "ssid",
+              "type": "string",
+              "default": "DSA"
+            },
+            {
+              "name": "password",
+              "type": "string"
+            },
+            {
+              "name": "ip",
+              "type": "string",
+              "default": "192.168.42.1"
+            }
+          ],
+          r"$result": "values",
+          r"$columns": [
+            {
+              "name": "success",
+              "type": "bool"
+            },
+            {
+              "name": "message",
+              "type": "string"
+            }
+          ]
+        },
+        "Name_Servers": {
+          r"$name": "Nameservers",
+          r"$type": "string",
+          "?value": (await getCurrentNameServers()).join(",")
+        },
+        "Hostname": {
+          r"$type": "string",
+          "?value": Platform.localHostname
+        }
       }
     }, profiles: {
     "reboot": addAction((Map<String, dynamic> params) {
@@ -378,72 +378,115 @@ Future<List<String>> listNetworkInterfaces() async {
 }
 
 syncNetworkStuff() async {
-  var ns = await serializeNetworkState();
-
   var nameservers = (await getCurrentNameServers()).join(",");
 
   if (nameservers.isNotEmpty) {
-    link.updateValue("/Name_Servers", nameservers);
+    link.updateValue("/Network/Name_Servers", nameservers);
   }
 
-  if (_lastNetworkState == null || ns != _lastNetworkState) {
-    _lastNetworkState = ns;
-    List<String> ifaces = await listNetworkInterfaces();
-    SimpleNode inode = link["/Network_Interfaces"];
+  List<String> ifaces = await listNetworkInterfaces();
+  SimpleNode inode = link["/Network"];
 
-    for (SimpleNode child in inode.children.values) {
+  for (SimpleNode child in inode.children.values) {
+    if (child.configs[r"$host_network"] != null) {
       inode.removeChild(child);
     }
+  }
 
-    var wifis = [];
-    var names = [];
+  var wifis = [];
+  var names = [];
 
-    for (String iface in ifaces) {
-      var m = {};
+  for (String iface in ifaces) {
+    var m = {};
 
-      names.add(iface);
+    names.add(iface);
 
-      m["Get_Addresses"] = {
-        r"$name": "Get Addresses",
+    m[r"$host_network"] = iface;
+
+    m["Get_Addresses"] = {
+      r"$name": "Get Addresses",
+      r"$invokable": "write",
+      r"$is": "getNetworkAddresses",
+      r"$result": "table",
+      r"$columns": [
+        {
+          "name": "address",
+          "type": "string"
+        }
+      ]
+    };
+
+    m["Configure_Automatically"] = {
+      r"$name": "Configure Automatically",
+      r"$invokable": "write",
+      r"$is": "configureNetworkAutomatic",
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ]
+    };
+
+    m["Configure_Manually"] = {
+      r"$name": "Configure Manually",
+      r"$invokable": "write",
+      r"$is": "configureNetworkManual",
+      r"$params": [
+        {
+          "name": "ip",
+          "type": "string"
+        },
+        {
+          "name": "netmask",
+          "type": "string"
+        },
+        {
+          "name": "gateway",
+          "type": "string"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      r"$result": "values"
+    };
+
+    if (await isWifiInterface(iface)) {
+      wifis.add(iface);
+      m["Scan_Wifi_Networks"] = {
+        r"$name": "Scan WiFi Networks",
         r"$invokable": "write",
-        r"$is": "getNetworkAddresses",
+        r"$is": "scanWifiNetworks",
         r"$result": "table",
         r"$columns": [
           {
-            "name": "address",
+            "name": "ssid",
             "type": "string"
-          }
-        ]
-      };
-
-      m["Configure_Automatically"] = {
-        r"$name": "Configure Automatically",
-        r"$invokable": "write",
-        r"$is": "configureNetworkAutomatic",
-        r"$result": "values",
-        r"$columns": [
+          },
           {
-            "name": "success",
+            "name": "hasSecurity",
             "type": "bool"
           }
         ]
       };
 
-      m["Configure_Manually"] = {
-        r"$name": "Configure Manually",
+      m["Set_Wifi_Network"] = {
+        r"$name": "Set WiFi Network",
         r"$invokable": "write",
-        r"$is": "configureNetworkManual",
+        r"$is": "setWifiNetwork",
+        r"$result": "values",
         r"$params": [
           {
-            "name": "ip",
+            "name": "ssid",
             "type": "string"
           },
           {
-            "name": "netmask",
-            "type": "string"
-          },
-          {
-            "name": "gateway",
+            "name": "password",
             "type": "string"
           }
         ],
@@ -452,59 +495,13 @@ syncNetworkStuff() async {
             "name": "success",
             "type": "bool"
           }
-        ],
-        r"$result": "values"
+        ]
       };
-
-      if (await isWifiInterface(iface)) {
-        wifis.add(iface);
-        m["Scan_Wifi_Networks"] = {
-          r"$name": "Scan WiFi Networks",
-          r"$invokable": "write",
-          r"$is": "scanWifiNetworks",
-          r"$result": "table",
-          r"$columns": [
-            {
-              "name": "ssid",
-              "type": "string"
-            },
-            {
-              "name": "hasSecurity",
-              "type": "bool"
-            }
-          ]
-        };
-
-        m["Set_Wifi_Network"] = {
-          r"$name": "Set WiFi Network",
-          r"$invokable": "write",
-          r"$is": "setWifiNetwork",
-          r"$result": "values",
-          r"$params": [
-            {
-              "name": "ssid",
-              "type": "string"
-            },
-            {
-              "name": "password",
-              "type": "string"
-            }
-          ],
-          r"$columns": [
-            {
-              "name": "success",
-              "type": "bool"
-            }
-          ]
-        };
-      }
-
-      link.addNode("/Network_Interfaces/${iface}", m);
     }
 
-    (link["/Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
-    (link["/Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+    link.addNode("/Network/${iface}", m);
   }
-}
 
-String _lastNetworkState;
+  (link["/Network/Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
+  (link["/Network/Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+}

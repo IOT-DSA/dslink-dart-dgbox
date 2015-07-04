@@ -325,18 +325,6 @@ Future configureNetworkManual(
   return resultB.exitCode == 0;
 }
 
-Future<String> serializeNetworkState() async {
-  var x = [];
-  var inter = await NetworkInterface.list();
-  for (NetworkInterface i in inter) {
-    x.add({
-      "name": i.name,
-      "addresses": i.addresses.map((it) => it.address).toList()
-    });
-  }
-  return JSON.encode(x);
-}
-
 Future<String> getWifiNetwork(String interface) async {
   if (Platform.isMacOS) {
     var result =
