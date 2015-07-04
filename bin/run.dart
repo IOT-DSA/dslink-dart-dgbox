@@ -299,7 +299,7 @@ main(List<String> args) async {
       for (var key in json.keys) {
         m.add({
           "key": key.toLowerCase(),
-          "value": json["value"]
+          "value": json[key]
         });
       }
 
