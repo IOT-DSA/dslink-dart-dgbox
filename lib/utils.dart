@@ -486,11 +486,12 @@ Future<String> getCurrentTimezone() async {
     var mf = new File("/etc/localtime");
     var tz = await getAllTimezones();
     List<File> files = tz.map((x) => new File("/usr/share/zoneinfo/${x}")).toList();
-    var mfb = await mf.readAsString();
+    var codec = new Utf8Codec(allowMalformed: true);
+    var mfb = await mf.readAsString(encoding: codec);
     var i = 0;
     for (var file in files) {
       try {
-        if (await file.readAsString() == mfb) {
+        if (await file.readAsString(encoding: codec) == mfb) {
           return tz[i];
         }
       } catch (e) {}
