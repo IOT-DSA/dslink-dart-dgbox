@@ -376,8 +376,8 @@ syncNetworkStuff() async {
       link.addNode("/Network_Interfaces/${interface.name}", m);
     }
 
-    (link["Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
-    (link["Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(interfaces);
+    (link["/Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
+    (link["/Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(interfaces);
   }
 }
 
