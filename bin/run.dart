@@ -2,7 +2,7 @@ import "dart:async";
 import "dart:convert";
 import "dart:io";
 
-import "package:dslink/dslink.dart";
+import "package:dslink/dslink.dart" hide Link;
 import "package:dslink/nodes.dart";
 
 import "package:dslink_system/utils.dart";
@@ -88,45 +88,23 @@ main(List<String> args) async {
 
   link = new LinkProvider(args, "Host-",
     defaultNodes: {
-      "Reboot": {
-        r"$invokable": "write",
-        r"$is": "reboot"
-      },
       "Shutdown": {
         r"$invokable": "write",
         r"$is": "shutdown"
       },
-      "Hostname": {
-        r"$type": "string",
-        "?value": Platform.localHostname
-      },
-      "Network_Interfaces": {
-        r"$name": "Network Interfaces"
-      },
-      "Name_Servers": {
-        r"$name": "Nameservers",
-        r"$type": "string",
-        "?value": (await getCurrentNameServers()).join(",")
-      },
-      "Get_Hotspot_Settings": {
-        r"$name": "Get Hotspot Settings",
-        r"$is": "getHotspotConfiguration",
+      "Reboot": {
         r"$invokable": "write",
-        r"$columns": [
-          {
-            "name": "key",
-            "type": "string"
-          },
-          {
-            "name": "value",
-            "type": "string"
-          }
-        ],
-        r"$result": "table"
+        r"$is": "reboot"
       },
       "Start_Hotspot": {
         r"$name": "Start Hotspot",
         r"$is": "startHotspot",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
+      "Stop_Hotspot": {
+        r"$name": "Stop Hotspot",
+        r"$is": "stopHotspot",
         r"$invokable": "write",
         r"$result": "values"
       },
@@ -148,11 +126,21 @@ main(List<String> args) async {
           }
         ]
       },
-      "Stop_Hotspot": {
-        r"$name": "Stop Hotspot",
-        r"$is": "stopHotspot",
+      "Get_Hotspot_Settings": {
+        r"$name": "Get Hotspot Settings",
+        r"$is": "getHotspotConfiguration",
         r"$invokable": "write",
-        r"$result": "values"
+        r"$columns": [
+          {
+            "name": "key",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "string"
+          }
+        ],
+        r"$result": "table"
       },
       "Configure_Hotspot": {
         r"$name": "Configure Hotspot",
@@ -193,6 +181,18 @@ main(List<String> args) async {
             "type": "string"
           }
         ]
+      },
+      "Network_Interfaces": {
+        r"$name": "Network Interfaces"
+      },
+      "Name_Servers": {
+        r"$name": "Nameservers",
+        r"$type": "string",
+        "?value": (await getCurrentNameServers()).join(",")
+      },
+      "Hostname": {
+        r"$type": "string",
+        "?value": Platform.localHostname
       }
     }, profiles: {
     "reboot": addAction((Map<String, dynamic> params) {
@@ -288,6 +288,21 @@ main(List<String> args) async {
         "message": "Success!"
       };
     }),
+    "listDirectory": addAction((Map<String, dynamic> params) async {
+      var dir = new Directory(params["path"]);
+
+      try {
+        return dir.list().asyncMap((x) async {
+          return {
+            "name": x.path.split("/").last,
+            "path": x.path,
+            "type": fseType(x)
+          };
+        }).toList();
+      } catch (e) {
+        return [];
+      }
+    }),
     "getHotspotConfiguration": addAction((Path path, Map<String, dynamic> params) async {
       var m = [];
       var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
@@ -315,6 +330,16 @@ main(List<String> args) async {
   });
 
   await syncNetworkStuff();
+}
+
+String fseType(FileSystemEntity entity) {
+  if (entity is Directory) {
+    return "directory";
+  } else if (entity is File) {
+    return "file";
+  } else if (entity is Link) {
+    return "link";
+  }
 }
 
 Timer timer;
