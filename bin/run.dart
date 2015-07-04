@@ -397,6 +397,10 @@ syncNetworkStuff() async {
   var names = [];
 
   for (String iface in ifaces) {
+    if (iface == "lo") {
+      continue;
+    }
+
     var m = {};
 
     names.add(iface);
