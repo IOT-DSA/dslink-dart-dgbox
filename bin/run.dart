@@ -96,6 +96,31 @@ main(List<String> args) async {
         r"$invokable": "write",
         r"$is": "reboot"
       },
+      "List_Directory": {
+        r"$invokable": "read",
+        r"$name": "List Directory",
+        r"$is": "listFiles",
+        r"$params": [
+          {
+            "name": "path",
+            "type": "string"
+          }
+        ],
+        r"$columns": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "path",
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "type": "string"
+          }
+        ]
+      },
       "Start_Hotspot": {
         r"$name": "Start Hotspot",
         r"$is": "startHotspot",
@@ -340,6 +365,8 @@ String fseType(FileSystemEntity entity) {
   } else if (entity is Link) {
     return "link";
   }
+
+  return "unknown";
 }
 
 Timer timer;
