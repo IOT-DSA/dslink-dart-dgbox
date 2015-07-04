@@ -557,7 +557,7 @@ Future<String> getPythonModuleDirectory() async {
   "import hostapd.main",
   "x = hotspotd.main.__file__.split('/')",
   "print('/'.join(x[0:len(x) - 1]))"
-  ].join("\n"));
+  ].join("\n"), writeToBuffer: true);
 
   return result.output.trim();
 }
