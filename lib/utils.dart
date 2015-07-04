@@ -225,16 +225,16 @@ Future<bool> setWifiNetwork(
   }
 }
 
-Future startHotspot() async {
+Future startAccessPoint() async {
   await Process.run("hotspotd", ["start"]);
 }
 
-Future stopHotspot() async {
+Future stopAccessPoint() async {
   await Process.run("hotspotd", ["stop"]);
   await Process.run("pkill", ["hostapd"]);
 }
 
-Future<bool> isHotspotOn() async {
+Future<bool> isAccessPointOn() async {
   return (await Process.run("pgrep", ["hostapd"])).exitCode == 0;
 }
 

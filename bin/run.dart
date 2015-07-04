@@ -125,27 +125,27 @@ main(List<String> args) async {
       },
       "Network": {
         r"$name": "Network",
-        "Start_Hotspot": {
-          r"$name": "Start Hotspot",
-          r"$is": "startHotspot",
+        "Start_Access_Point": {
+          r"$name": "Start Access Point",
+          r"$is": "startAccessPoint",
           r"$invokable": "write",
           r"$result": "values"
         },
-        "Stop_Hotspot": {
-          r"$name": "Stop Hotspot",
-          r"$is": "stopHotspot",
+        "Stop_Access_Point": {
+          r"$name": "Stop Access Point",
+          r"$is": "stopAccessPoint",
           r"$invokable": "write",
           r"$result": "values"
         },
-        "Restart_Hotspot": {
-          r"$name": "Restart Hotspot",
-          r"$is": "restartHotspot",
+        "Restart_Access_Point": {
+          r"$name": "Restart Access Point",
+          r"$is": "restartAccessPoint",
           r"$invokable": "write",
           r"$result": "values"
         },
-        "Get_Hotspot_Status": {
-          r"$name": "Get Hotspot Status",
-          r"$is": "getHotspotStatus",
+        "Get_Access_Point_Status": {
+          r"$name": "Get Access Point Status",
+          r"$is": "getAccessPointStatus",
           r"$invokable": "write",
           r"$result": "values",
           r"$columns": [
@@ -155,9 +155,9 @@ main(List<String> args) async {
             }
           ]
         },
-        "Get_Hotspot_Settings": {
-          r"$name": "Get Hotspot Settings",
-          r"$is": "getHotspotConfiguration",
+        "Get_Access_Point_Settings": {
+          r"$name": "Get Access Point Settings",
+          r"$is": "getAccessPointConfiguration",
           r"$invokable": "write",
           r"$columns": [
             {
@@ -171,9 +171,9 @@ main(List<String> args) async {
           ],
           r"$result": "table"
         },
-        "Configure_Hotspot": {
-          r"$name": "Configure Hotspot",
-          r"$is": "configureHotspot",
+        "Configure_Access_Point": {
+          r"$name": "Configure Access Point",
+          r"$is": "configureAccessPoint",
           r"$invokable": "write",
           r"$params": [
             {
@@ -225,19 +225,19 @@ main(List<String> args) async {
     "reboot": addAction((Map<String, dynamic> params) {
       System.reboot();
     }),
-    "startHotspot": addAction((Map<String, dynamic> params) async {
-      await startHotspot();
+    "startAccessPoint": addAction((Map<String, dynamic> params) async {
+      await startAccessPoint();
     }),
-    "stopHotspot": addAction((Map<String, dynamic> params) async {
-      await stopHotspot();
+    "stopAccessPoint": addAction((Map<String, dynamic> params) async {
+      await stopAccessPoint();
     }),
-    "restartHotspot": addAction((Map<String, dynamic> params) async {
-      await stopHotspot();
-      await startHotspot();
+    "restartAccessPoint": addAction((Map<String, dynamic> params) async {
+      await stopAccessPoint();
+      await startAccessPoint();
     }),
-    "getHotspotStatus": addAction((Map<String, dynamic> params) async {
+    "getAccessPointStatus": addAction((Map<String, dynamic> params) async {
       return {
-        "up": await isHotspotOn()
+        "up": await isAccessPointOn()
       };
     }),
     "shutdown": addAction((Map<String, dynamic> params) {
@@ -287,7 +287,7 @@ main(List<String> args) async {
         "success": await setWifiNetwork(name, ssid, password)
       };
     }),
-    "configureHotspot": addAction((Path path, Map<String, dynamic> params) async {
+    "configureAccessPoint": addAction((Path path, Map<String, dynamic> params) async {
       var ssid = params["ssid"];
       var password = params["password"];
       var wifi = params["wifi"];
@@ -297,7 +297,7 @@ main(List<String> args) async {
       if (wifi == internet) {
         return {
           "success": false,
-          "message": "Hotspot Interface cannot be the same as the Internet Interface"
+          "message": "Access Point Interface cannot be the same as the Internet Interface"
         };
       }
 
@@ -330,7 +330,7 @@ main(List<String> args) async {
         return [];
       }
     }),
-    "getHotspotConfiguration": addAction((Path path, Map<String, dynamic> params) async {
+    "getAccessPointConfiguration": addAction((Path path, Map<String, dynamic> params) async {
       var m = [];
       var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
       if (!(await file.exists())) {
@@ -502,6 +502,6 @@ syncNetworkStuff() async {
     link.addNode("/Network/${iface}", m);
   }
 
-  (link["/Network/Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
-  (link["/Network/Configure_Hotspot"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+  (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
+  (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
 }
