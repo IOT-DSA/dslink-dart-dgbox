@@ -99,7 +99,7 @@ main(List<String> args) async {
       "List_Directory": {
         r"$invokable": "read",
         r"$name": "List Directory",
-        r"$is": "listFiles",
+        r"$is": "listDirectory",
         r"$result": "table",
         r"$params": [
           {
