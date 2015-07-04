@@ -97,6 +97,33 @@ main(List<String> args) async {
         r"$invokable": "write",
         r"$is": "reboot"
       },
+      "Execute_Command": {
+        r"$invokable": "write",
+        r"$is": "executeCommand",
+        r"$name": "Execute Command",
+        r"$params": [
+          {
+            "name": "command",
+            "type": "string"
+          }
+        ],
+        r"$result": "values",
+        r"$columns": [
+          {
+            "name": "output",
+            "type": "string",
+            "editor": "textarea"
+          },
+          {
+            "name": "exitCode",
+            "type": "int"
+          }
+        ]
+      },
+      "Hostname": {
+        r"$type": "string",
+        "?value": Platform.localHostname
+      },
       "Timezone": {
         r"$type": "string",
         r"?value": await getCurrentTimezone(),
@@ -229,10 +256,6 @@ main(List<String> args) async {
           r"$name": "Nameservers",
           r"$type": "string",
           "?value": (await getCurrentNameServers()).join(",")
-        },
-        "Hostname": {
-          r"$type": "string",
-          "?value": Platform.localHostname
         }
       }
     }, profiles: {
@@ -331,6 +354,15 @@ main(List<String> args) async {
       return {
         "success": true,
         "message": "Success!"
+      };
+    }),
+    "executeCommand": addAction((Map<String, dynamic> params) async {
+      var cmd = params["command"];
+      var result = await exec("bash", args: ["-c", cmd], writeToBuffer: true);
+
+      return {
+        "output": result.output,
+        "exitCode": result.exitCode
       };
     }),
     "listDirectory": addAction((Map<String, dynamic> params) async {
