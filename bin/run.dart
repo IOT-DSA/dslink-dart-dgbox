@@ -219,6 +219,11 @@ main(List<String> args) async {
       }
 
       await file.writeAsString(config);
+
+      return {
+        "success": true,
+        "message": "Success!"
+      };
     }),
     "getHotspotConfiguration": addAction((Path path, Map<String, dynamic> params) async {
       var m = [];
