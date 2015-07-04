@@ -423,6 +423,47 @@ main(List<String> args) async {
       }
     }),
     "getAccessPointConfiguration": addAction((Path path, Map<String, dynamic> params) async {
+      if (await isProbablyDGBox()) {
+        var file = new File("/root/.uap0.conf");
+        var content = await file.readAsString();
+        var lines = content.split("\n");
+        var map = {};
+        for (var line in lines) {
+          line = line.trim();
+
+          if (line.isEmpty) {
+            continue;
+          }
+
+          var parts = line.split("=");
+          var key = parts[0];
+          var value = parts.skip(1).join("=");
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.substring(1, value.length - 1);
+          }
+
+          map[key] = value;
+        }
+        return [
+          {
+            "key": "ip",
+            "value": map["ADDRESS"]
+          },
+          {
+            "key": "ssid",
+            "value": map["SSID"]
+          },
+          {
+            "key": "password",
+            "value": map["PASSKEY"]
+          },
+          {
+            "key": "netmask",
+            "value": "255.255.255.0"
+          }
+        ];
+      }
+
       var m = [];
       var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
       if (!(await file.exists())) {
