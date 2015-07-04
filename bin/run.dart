@@ -336,7 +336,7 @@ main(List<String> args) async {
 
       var config = generateHotspotDaemonConfig(wifi, internet, ssid, ip, "255.255.255.0", password);
 
-      var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
+      var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
       if (!(await file.exists())) {
         await file.create(recursive: true);
       }
@@ -374,7 +374,7 @@ main(List<String> args) async {
     }),
     "getAccessPointConfiguration": addAction((Path path, Map<String, dynamic> params) async {
       var m = [];
-      var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
+      var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
       if (!(await file.exists())) {
         return [];
       }
@@ -550,6 +550,16 @@ syncNetworkStuff() async {
 
   (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
   (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+}
+
+Future<String> getPythonModuleDirectory() async {
+  var result = await exec("python2", args: ["-"], stdin: """
+  import hostapd.main
+  x = hotspotd.main.__file__.split("/");
+  print("/".join(x[0:len(x) - 1]))
+  """);
+
+  return result.output.trim();
 }
 
 Future updateTimezone() async {
