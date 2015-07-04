@@ -68,8 +68,6 @@ String generateHotspotDaemonConfig(String wifi, String internet, String ssid, St
 }
 
 main(List<String> args) async {
-  print(await getPythonModuleDirectory());
-
   {
     var result = await Process.run("id", ["-u"]);
 
@@ -556,7 +554,7 @@ syncNetworkStuff() async {
 
 Future<String> getPythonModuleDirectory() async {
   var result = await exec("python2", args: ["-"], stdin: [
-  "import hotspotd",
+  "import hotspotd.main",
   "x = hotspotd.main.__file__.split('/')",
   "print('/'.join(x[0:len(x) - 1]))"
   ].join("\n"), writeToBuffer: true);
