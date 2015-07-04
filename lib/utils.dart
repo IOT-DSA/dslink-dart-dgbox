@@ -535,6 +535,34 @@ Future<List<String>> getAllTimezones() async {
   return zones;
 }
 
+Future<String> installPackage(String pkg) async {
+  if (Platform.isMacOS) {
+    throw new Exception("Installing Packages on Mac OS X is not supported.");
+  }
+
+  var isArchLinux = await fileExists("/etc/arch-release");
+  var isDebian = await fileExists("/usr/bin/apt-get");
+
+  runCommand(String cmd, List<String> args) async {
+    var result = await exec(cmd, args: args, inherit: true);
+    if (result.exitCode != 0) {
+      print("Failed to install package: ${pkg}");
+      exit(1);
+    }
+  }
+
+  if (isArchLinux) {
+    await runCommand("pacman", ["-S", pkg]);
+  } else if (isDebian) {
+    await runCommand("apt-get", ["install", pkg]);
+  } else {
+    print("Unknown Linux Distribution. Please install the package '${pkg}' with your distribution's package manager.");
+    exit(1);
+  }
+}
+
+Future<bool> fileExists(String path) async => await new File(path).exists();
+
 Future setCurrentTimezone(String name) async {
   var path = "/usr/share/zoneinfo/${name}";
   var link = new Link("/etc/localtime");

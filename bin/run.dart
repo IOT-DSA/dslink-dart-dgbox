@@ -37,18 +37,10 @@ verifyDependencies() async {
     "dnsmasq"
   ];
 
-  var missing = false;
-
   for (var tool in tools) {
     if (await findExecutable(tool) == null) {
-      missing = true;
-      print("Missing Dependency: ${tool}");
+      await installPackage(tool);
     }
-  }
-
-  if (missing) {
-    print("Please install these tools before continuing.");
-    exit(1);
   }
 
   if (await findExecutable("hotspotd") == null) {
