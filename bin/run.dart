@@ -130,6 +130,12 @@ main(List<String> args) async {
         r"$invokable": "write",
         r"$result": "values"
       },
+      "Restart_Hotspot": {
+        r"$name": "Restart Hotspot",
+        r"$is": "restartHotspot",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
       "Get_Hotspot_Status": {
         r"$name": "Get Hotspot Status",
         r"$is": "getHotspotStatus",
@@ -197,6 +203,10 @@ main(List<String> args) async {
     }),
     "stopHotspot": addAction((Map<String, dynamic> params) async {
       await stopHotspot();
+    }),
+    "restartHotspot": addAction((Map<String, dynamic> params) async {
+      await stopHotspot();
+      await startHotspot();
     }),
     "getHotspotStatus": addAction((Map<String, dynamic> params) async {
       return {
