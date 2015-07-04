@@ -123,7 +123,8 @@ main(List<String> args) async {
           },
           {
             "name": "ssid",
-            "type": "string"
+            "type": "string",
+            "default": "DSA"
           },
           {
             "name": "password",
@@ -131,7 +132,8 @@ main(List<String> args) async {
           },
           {
             "name": "ip",
-            "type": "string"
+            "type": "string",
+            "default": "192.168.42.1"
           }
         ],
         r"$result": "values",
@@ -458,7 +460,7 @@ Future<bool> isWifiInterface(String name) async {
   } else {
     var result = await Process.run("iwconfig", [name]);
 
-    if (result.stdout.contains("no wireless extensions")) {
+    if (result.exitCode != 0) {
       return false;
     } else {
       return true;
