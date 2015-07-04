@@ -480,7 +480,7 @@ syncNetworkStuff() async {
   SimpleNode inode = link["/Network"];
 
   for (SimpleNode child in inode.children.values) {
-    if (child.configs[r"$host_network"] != null) {
+    if (child.configs[r"$host_network"] != null && !ifaces.contains(child.configs[r"$host_network"])) {
       inode.removeChild(child);
     }
   }
