@@ -474,3 +474,70 @@ Future<List<String>> getCurrentNameServers() async {
       .map((x) => x.replaceAll("nameserver ", ""))
       .toList();
 }
+
+Future<String> getCurrentTimezone() async {
+  var type = await FileSystemEntity.type("/etc/localtime", followLinks: false);
+
+  if (type == FileSystemEntityType.LINK) {
+    var link = new Link("/etc/localtime");
+
+    return (await link.resolveSymbolicLinks()).substring("/usr/share/zoneinfo/".length);
+  } else if (type == FileSystemEntityType.FILE) {
+    var mf = new File("/etc/localtime");
+    var tz = await getAllTimezones();
+    List<File> files = tz.map((x) => new File("/usr/share/zoneinfo/${x}")).toList();
+    var mfb = await mf.readAsString();
+    var i = 0;
+    for (var file in files) {
+      try {
+        if (await file.readAsString() == mfb) {
+          return tz[i];
+        }
+      } catch (e) {}
+      i++;
+    }
+  }
+
+  return "UTC";
+}
+
+Future<List<String>> getAllTimezones() async {
+  var dir = new Directory("/usr/share/zoneinfo");
+
+  if (!(await dir.exists())) {
+    return ["UTC"];
+  }
+
+  var files = await dir.list(recursive: true).toList();
+  var zones = [];
+
+  for (var file in files) {
+    if (file is! File) {
+      continue;
+    }
+
+    if (file.path.contains(".")) {
+      continue;
+    }
+
+    var name = file.path.substring("/usr/share/zoneinfo/".length);
+
+    if (name[0].toLowerCase() == name[0]) {
+      continue;
+    }
+
+    zones.add(name);
+  }
+
+  return zones;
+}
+
+Future setCurrentTimezone(String name) async {
+  var path = "/usr/share/zoneinfo/${name}";
+  var link = new Link("/etc/localtime");
+  if (await link.exists()) {
+    await link.delete();
+  }
+
+  await link.create(path);
+}

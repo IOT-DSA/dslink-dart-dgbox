@@ -97,6 +97,20 @@ main(List<String> args) async {
         r"$invokable": "write",
         r"$is": "reboot"
       },
+      "Timezone": {
+        r"$type": "string",
+        r"?value": await getCurrentTimezone(),
+        "Set": {
+          r"$invokable": "write",
+          r"$is": "setCurrentTimezone",
+          r"$params": [
+            {
+              "name": "timezone",
+              "type": buildEnumType(await getAllTimezones())
+            }
+          ]
+        }
+      },
       "List_Directory": {
         r"$invokable": "read",
         r"$name": "List Directory",
@@ -286,6 +300,10 @@ main(List<String> args) async {
       return {
         "success": await setWifiNetwork(name, ssid, password)
       };
+    }),
+    "setCurrentTimezone": addAction((Map<String, dynamic> params) async {
+      await setCurrentTimezone(params["timezone"]);
+      await updateTimezone();
     }),
     "configureAccessPoint": addAction((Path path, Map<String, dynamic> params) async {
       var ssid = params["ssid"];
@@ -508,4 +526,8 @@ syncNetworkStuff() async {
 
   (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
   (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+}
+
+Future updateTimezone() async {
+  link.updateValue("/Timezone", await getCurrentTimezone());
 }
