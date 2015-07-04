@@ -226,15 +226,27 @@ Future<bool> setWifiNetwork(
 }
 
 Future startAccessPoint() async {
-  await Process.run("hotspotd", ["start"]);
+  if (await isProbablyDGBox()) {
+    await exec("bash", args: ["tools/dreamplug/wireless.sh", "base"]);
+  } else {
+    await Process.run("hotspotd", ["start"]);
+  }
 }
 
 Future stopAccessPoint() async {
-  await Process.run("hotspotd", ["stop"]);
-  await Process.run("pkill", ["hostapd"]);
+  if (await isProbablyDGBox()) {
+    await exec("bash", args: ["tools/dreamplug/wireless.sh", "client"]);
+  } else {
+    await Process.run("hotspotd", ["stop"]);
+    await Process.run("pkill", ["hostapd"]);
+  }
 }
 
 Future<bool> isAccessPointOn() async {
+  if (await isProbablyDGBox()) {
+    return (await exec("ifconfig", args: ["uap0"])).exitCode != 1;
+  }
+
   return (await Process.run("pgrep", ["hostapd"])).exitCode == 0;
 }
 
@@ -572,3 +584,15 @@ Future setCurrentTimezone(String name) async {
 
   await link.create(path);
 }
+
+Future<bool> isProbablyDGBox() async {
+  if (_dgbox != null) {
+    return _dgbox;
+  }
+  var file = new File("/proc/cpuinfo");
+  var content = await file.readAsString();
+
+  return _dgbox = content.contains("Marvell GuruPlug Reference Board");
+}
+
+bool _dgbox;

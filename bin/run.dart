@@ -43,6 +43,14 @@ verifyDependencies() async {
     }
   }
 
+  if (await isProbablyDGBox()) {
+    var mf = new File("/usr/bin/python2");
+    if (!(await mf.exists())) {
+      var link = new Link("/usr/bin/python2");
+      await link.create("/usr/bin/python");
+    }
+  }
+
   if (await findExecutable("hotspotd") == null) {
     var result = await exec("python2", args: [
       "setup.py",
