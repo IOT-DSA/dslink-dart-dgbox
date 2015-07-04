@@ -213,7 +213,7 @@ main(List<String> args) async {
 
       var config = generateHotspotDaemonConfig(wifi, internet, ssid, ip, "255.255.255.0", password);
 
-      var file = new File("hotspotd.json");
+      var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
       if (!(await file.exists())) {
         await file.create(recursive: true);
       }
@@ -227,7 +227,7 @@ main(List<String> args) async {
     }),
     "getHotspotConfiguration": addAction((Path path, Map<String, dynamic> params) async {
       var m = [];
-      var file = new File("hotspotd.json");
+      var file = new File("/usr/local/lib/python2.7/dist-packages/hotspotd/hotspotd.json");
       if (!(await file.exists())) {
         return [];
       }
