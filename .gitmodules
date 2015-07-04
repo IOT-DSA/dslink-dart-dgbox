@@ -1,0 +1,3 @@
+[submodule "tools/hotspotd"]
+	path = tools/hotspotd
+	url = https://github.com/kaendfinger/hotspotd.git
