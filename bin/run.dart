@@ -315,7 +315,7 @@ main(List<String> args) async {
       };
     }),
     "listDirectory": addAction((Map<String, dynamic> params) async {
-      var dir = new Directory(params["path"]);
+      var dir = new Directory(params["directory"]);
 
       try {
         return dir.list().asyncMap((x) async {
