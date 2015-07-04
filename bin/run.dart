@@ -100,6 +100,7 @@ main(List<String> args) async {
         r"$invokable": "read",
         r"$name": "List Directory",
         r"$is": "listFiles",
+        r"$result": "table",
         r"$params": [
           {
             "name": "path",
