@@ -530,6 +530,8 @@ Future<List<String>> getAllTimezones() async {
     zones.add(name);
   }
 
+  zones.sort();
+
   return zones;
 }
 
