@@ -108,6 +108,46 @@ main(List<String> args) async {
         r"$type": "string",
         "?value": (await getCurrentNameServers()).join(",")
       },
+      "Get_Hotspot_Settings": {
+        r"$name": "Get Hotspot Settings",
+        r"$is": "getHotspotConfiguration",
+        r"$invokable": "write",
+        r"$columns": [
+          {
+            "name": "key",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "string"
+          }
+        ],
+        r"$result": "table"
+      },
+      "Start_Hotspot": {
+        r"$name": "Start Hotspot",
+        r"$is": "startHotspot",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
+      "Get_Hotspot_Status": {
+        r"$name": "Get Hotspot Status",
+        r"$is": "getHotspotStatus",
+        r"$invokable": "write",
+        r"$result": "values",
+        r"$columns": [
+          {
+            "name": "up",
+            "type": "bool"
+          }
+        ]
+      },
+      "Stop_Hotspot": {
+        r"$name": "Stop Hotspot",
+        r"$is": "stopHotspot",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
       "Configure_Hotspot": {
         r"$name": "Configure Hotspot",
         r"$is": "configureHotspot",
@@ -151,6 +191,17 @@ main(List<String> args) async {
     }, profiles: {
     "reboot": addAction((Map<String, dynamic> params) {
       System.reboot();
+    }),
+    "startHotspot": addAction((Map<String, dynamic> params) async {
+      await startHotspot();
+    }),
+    "stopHotspot": addAction((Map<String, dynamic> params) async {
+      await stopHotspot();
+    }),
+    "getHotspotStatus": addAction((Map<String, dynamic> params) async {
+      return {
+        "up": await isHotspotOn()
+      };
     }),
     "shutdown": addAction((Map<String, dynamic> params) {
       System.shutdown();
@@ -263,8 +314,11 @@ Future<List<String>> listNetworkInterfaces() async {
   List<String> lines = result.stdout.split("\n");
   var ifaces = [];
   for (var line in lines) {
-    if (line.isNotEmpty && line[0] != " ") {
+    if (line.isNotEmpty && line[0] != " " && line[0] != "\t") {
       var iface = line.split(" ")[0];
+      if (iface.endsWith(":")) {
+        iface = iface.substring(0, iface.length - 1);
+      }
       ifaces.add(iface);
     }
   }
@@ -431,6 +485,19 @@ Future<bool> setWifiNetwork(String interface, String ssid, String password) asyn
 
     return true;
   }
+}
+
+Future startHotspot() async {
+  await Process.run("hotspotd", ["start"]);
+}
+
+Future stopHotspot() async {
+  await Process.run("hotspotd", ["stop"]);
+  await Process.run("pkill", ["hostapd"]);
+}
+
+Future<bool> isHotspotOn() async {
+  return (await Process.run("pgrep", ["hostapd"])).exitCode == 0;
 }
 
 Future<bool> isWifiInterface(String name) async {
