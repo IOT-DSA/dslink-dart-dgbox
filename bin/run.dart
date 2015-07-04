@@ -251,6 +251,19 @@ main(List<String> args) async {
 
 Timer timer;
 
+Future<List<String>> listNetworkInterfaces() async {
+  var result = await Process.run("ifconfig", []);
+  List<String> lines = result.stdout.split("\n");
+  var ifaces = [];
+  for (var line in lines) {
+    if (line.isNotEmpty && line[0] != " ") {
+      var iface = line.split(" ")[0];
+      ifaces.add(iface);
+    }
+  }
+  return ifaces;
+}
+
 syncNetworkStuff() async {
   var ns = await serializeNetworkState();
 
@@ -262,7 +275,7 @@ syncNetworkStuff() async {
 
   if (_lastNetworkState == null || ns != _lastNetworkState) {
     _lastNetworkState = ns;
-    var interfaces = await NetworkInterface.list();
+    List<String> ifaces = await listNetworkInterfaces();
     SimpleNode inode = link["/Network_Interfaces"];
 
     for (SimpleNode child in inode.children.values) {
@@ -272,10 +285,10 @@ syncNetworkStuff() async {
     var wifis = [];
     var names = [];
 
-    for (NetworkInterface interface in interfaces) {
+    for (String iface in ifaces) {
       var m = {};
 
-      names.add(interface.name);
+      names.add(iface);
 
       m["Get_Addresses"] = {
         r"$name": "Get Addresses",
@@ -330,8 +343,8 @@ syncNetworkStuff() async {
         r"$result": "values"
       };
 
-      if (await isWifiInterface(interface.name)) {
-        wifis.add(interface.name);
+      if (await isWifiInterface(iface)) {
+        wifis.add(iface);
         m["Scan_Wifi_Networks"] = {
           r"$name": "Scan WiFi Networks",
           r"$invokable": "write",
@@ -373,7 +386,7 @@ syncNetworkStuff() async {
         };
       }
 
-      link.addNode("/Network_Interfaces/${interface.name}", m);
+      link.addNode("/Network_Interfaces/${iface}", m);
     }
 
     (link["/Configure_Hotspot"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
