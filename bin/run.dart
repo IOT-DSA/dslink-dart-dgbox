@@ -103,7 +103,7 @@ main(List<String> args) async {
         r"$result": "table",
         r"$params": [
           {
-            "name": "path",
+            "name": "directory",
             "type": "string"
           }
         ],
