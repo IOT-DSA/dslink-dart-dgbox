@@ -92,178 +92,184 @@ main(List<String> args) async {
     await verifyDependencies();
   }
 
-  link = new LinkProvider(args, "Host-",
-    defaultNodes: {
-      "Shutdown": {
+  var map = {
+    "Shutdown": {
+      r"$invokable": "write",
+      r"$is": "shutdown"
+    },
+    "Reboot": {
+      r"$invokable": "write",
+      r"$is": "reboot"
+    },
+    "Execute_Command": {
+      r"$invokable": "write",
+      r"$is": "executeCommand",
+      r"$name": "Execute Command",
+      r"$params": [
+        {
+          "name": "command",
+          "type": "string"
+        }
+      ],
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "output",
+          "type": "string",
+          "editor": "textarea"
+        },
+        {
+          "name": "exitCode",
+          "type": "int"
+        }
+      ]
+    },
+    "Hostname": {
+      r"$type": "string",
+      "?value": Platform.localHostname
+    },
+    "Timezone": {
+      r"$type": "string",
+      r"?value": await getCurrentTimezone(),
+      "Set": {
         r"$invokable": "write",
-        r"$is": "shutdown"
-      },
-      "Reboot": {
-        r"$invokable": "write",
-        r"$is": "reboot"
-      },
-      "Execute_Command": {
-        r"$invokable": "write",
-        r"$is": "executeCommand",
-        r"$name": "Execute Command",
+        r"$is": "setCurrentTimezone",
         r"$params": [
           {
-            "name": "command",
+            "name": "timezone",
+            "type": buildEnumType(await getAllTimezones())
+          }
+        ]
+      }
+    },
+    "List_Directory": {
+      r"$invokable": "read",
+      r"$name": "List Directory",
+      r"$is": "listDirectory",
+      r"$result": "table",
+      r"$params": [
+        {
+          "name": "directory",
+          "type": "string"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "path",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ]
+    },
+    "Network": {
+      r"$name": "Network",
+      "Start_Access_Point": {
+        r"$name": "Start Access Point",
+        r"$is": "startAccessPoint",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
+      "Stop_Access_Point": {
+        r"$name": "Stop Access Point",
+        r"$is": "stopAccessPoint",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
+      "Restart_Access_Point": {
+        r"$name": "Restart Access Point",
+        r"$is": "restartAccessPoint",
+        r"$invokable": "write",
+        r"$result": "values"
+      },
+      "Get_Access_Point_Status": {
+        r"$name": "Get Access Point Status",
+        r"$is": "getAccessPointStatus",
+        r"$invokable": "write",
+        r"$result": "values",
+        r"$columns": [
+          {
+            "name": "up",
+            "type": "bool"
+          }
+        ]
+      },
+      "Get_Access_Point_Settings": {
+        r"$name": "Get Access Point Settings",
+        r"$is": "getAccessPointConfiguration",
+        r"$invokable": "write",
+        r"$columns": [
+          {
+            "name": "key",
             "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "string"
+          }
+        ],
+        r"$result": "table"
+      },
+      "Configure_Access_Point": {
+        r"$name": "Configure Access Point",
+        r"$is": "configureAccessPoint",
+        r"$invokable": "write",
+        r"$params": [
+          {
+            "name": "ssid",
+            "type": "string",
+            "default": "DSA"
+          },
+          {
+            "name": "password",
+            "type": "string"
+          },
+          {
+            "name": "ip",
+            "type": "string",
+            "default": "192.168.42.1"
           }
         ],
         r"$result": "values",
         r"$columns": [
           {
-            "name": "output",
-            "type": "string",
-            "editor": "textarea"
+            "name": "success",
+            "type": "bool"
           },
           {
-            "name": "exitCode",
-            "type": "int"
-          }
-        ]
-      },
-      "Hostname": {
-        r"$type": "string",
-        "?value": Platform.localHostname
-      },
-      "Timezone": {
-        r"$type": "string",
-        r"?value": await getCurrentTimezone(),
-        "Set": {
-          r"$invokable": "write",
-          r"$is": "setCurrentTimezone",
-          r"$params": [
-            {
-              "name": "timezone",
-              "type": buildEnumType(await getAllTimezones())
-            }
-          ]
-        }
-      },
-      "List_Directory": {
-        r"$invokable": "read",
-        r"$name": "List Directory",
-        r"$is": "listDirectory",
-        r"$result": "table",
-        r"$params": [
-          {
-            "name": "directory",
-            "type": "string"
-          }
-        ],
-        r"$columns": [
-          {
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "name": "path",
-            "type": "string"
-          },
-          {
-            "name": "type",
+            "name": "message",
             "type": "string"
           }
         ]
       },
-      "Network": {
-        r"$name": "Network",
-        "Start_Access_Point": {
-          r"$name": "Start Access Point",
-          r"$is": "startAccessPoint",
-          r"$invokable": "write",
-          r"$result": "values"
-        },
-        "Stop_Access_Point": {
-          r"$name": "Stop Access Point",
-          r"$is": "stopAccessPoint",
-          r"$invokable": "write",
-          r"$result": "values"
-        },
-        "Restart_Access_Point": {
-          r"$name": "Restart Access Point",
-          r"$is": "restartAccessPoint",
-          r"$invokable": "write",
-          r"$result": "values"
-        },
-        "Get_Access_Point_Status": {
-          r"$name": "Get Access Point Status",
-          r"$is": "getAccessPointStatus",
-          r"$invokable": "write",
-          r"$result": "values",
-          r"$columns": [
-            {
-              "name": "up",
-              "type": "bool"
-            }
-          ]
-        },
-        "Get_Access_Point_Settings": {
-          r"$name": "Get Access Point Settings",
-          r"$is": "getAccessPointConfiguration",
-          r"$invokable": "write",
-          r"$columns": [
-            {
-              "name": "key",
-              "type": "string"
-            },
-            {
-              "name": "value",
-              "type": "string"
-            }
-          ],
-          r"$result": "table"
-        },
-        "Configure_Access_Point": {
-          r"$name": "Configure Access Point",
-          r"$is": "configureAccessPoint",
-          r"$invokable": "write",
-          r"$params": [
-            {
-              "name": "wifi",
-              "type": "enum[]"
-            },
-            {
-              "name": "internet",
-              "type": "enum[]"
-            },
-            {
-              "name": "ssid",
-              "type": "string",
-              "default": "DSA"
-            },
-            {
-              "name": "password",
-              "type": "string"
-            },
-            {
-              "name": "ip",
-              "type": "string",
-              "default": "192.168.42.1"
-            }
-          ],
-          r"$result": "values",
-          r"$columns": [
-            {
-              "name": "success",
-              "type": "bool"
-            },
-            {
-              "name": "message",
-              "type": "string"
-            }
-          ]
-        },
-        "Name_Servers": {
-          r"$name": "Nameservers",
-          r"$type": "string",
-          "?value": (await getCurrentNameServers()).join(",")
-        }
+      "Name_Servers": {
+        r"$name": "Nameservers",
+        r"$type": "string",
+        "?value": (await getCurrentNameServers()).join(",")
       }
-    }, profiles: {
+    }
+  };
+
+  List mfj = map["Network"]["Configure_Access_Point"][r"$params"];
+  mfj.insertAll(0, [
+    {
+      "name": "wifi",
+      "type": "enum[]"
+    },
+    {
+      "name": "internet",
+      "type": "enum[]"
+    }
+  ]);
+
+  link = new LinkProvider(args, "Host-",
+    defaultNodes: map, profiles: {
     "reboot": addAction((Map<String, dynamic> params) {
       System.reboot();
     }),
@@ -334,12 +340,43 @@ main(List<String> args) async {
       await updateTimezone();
     }),
     "configureAccessPoint": addAction((Path path, Map<String, dynamic> params) async {
-      var ssid = params["ssid"];
-      var password = params["password"];
+      String ssid = params["ssid"];
+      String password = params["password"];
+      String ip = params["ip"];
+
+      if (await isProbablyDGBox()) {
+        var uapConfig = [
+          "ADDRESS=${ip}",
+          "SSID=\"${ssid}\"",
+          "PASSKEY=\"${password}\""
+        ];
+
+        var uapFile = new File("/root/.uap0.conf");
+        await uapFile.writeAsString(uapConfig.join("\n"));
+        var ml = ip.split(".").take(3).join(".");
+        var dhcpConfig = [
+          "start\t${ml}.100",
+          "end\t${ml}.200",
+          "interface\tuap0",
+          "opt\tlease\t86400",
+          "opt\trouter\t${ml}.1",
+          "opt\tsubnet\t255.255.255.0",
+          "opt\tdns\t${ml}.1",
+          "opt\tdomain\tlocaldomain",
+          "max_leases\t101",
+          "lease_file\t/var/lib/udhcpd.leases",
+          "auto_time\t5"
+        ];
+        var dhcpFile = new File("/etc/udhcpd.conf");
+        await dhcpFile.writeAsString(dhcpConfig.join("\n"));
+        return {
+          "success": true,
+          "message": "Success!"
+        };
+      }
+
       var wifi = params["wifi"];
       var internet = params["internet"];
-      var ip = params["ip"];
-
       if (wifi == internet) {
         return {
           "success": false,
@@ -561,8 +598,10 @@ syncNetworkStuff() async {
     link.addNode("/Network/${iface}", m);
   }
 
-  (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
-  (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+  if (!(await isProbablyDGBox())) {
+    (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
+    (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+  }
 }
 
 Future<String> getPythonModuleDirectory() async {
