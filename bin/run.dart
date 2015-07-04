@@ -54,6 +54,11 @@ verifyDependencies() async {
       exit(1);
     }
   }
+
+  if (await fileExists("/etc/rpi-issue")) {
+    var nf = new File("tools/hostapd_pi");
+    await nf.copy("/usr/sbin/hostapd");
+  }
 }
 
 String generateHotspotDaemonConfig(String wifi, String internet, String ssid, String ip, String netmask, String password) {
