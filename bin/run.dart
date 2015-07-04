@@ -553,11 +553,11 @@ syncNetworkStuff() async {
 }
 
 Future<String> getPythonModuleDirectory() async {
-  var result = await exec("python2", args: ["-"], stdin: """
-  import hostapd.main
-  x = hotspotd.main.__file__.split("/");
-  print("/".join(x[0:len(x) - 1]))
-  """);
+  var result = await exec("python2", args: ["-"], stdin: [
+  "import hostapd.main",
+  "x = hotspotd.main.__file__.split('/')",
+  "print('/'.join(x[0:len(x) - 1]))"
+  ].join("\n"));
 
   return result.output.trim();
 }
