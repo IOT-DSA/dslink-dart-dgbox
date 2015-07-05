@@ -532,7 +532,7 @@ syncNetworkStuff() async {
   var names = [];
 
   for (String iface in ifaces) {
-    if (iface == "lo") {
+    if (iface == "lo" || inode.children.containsKey(iface)) {
       continue;
     }
 
