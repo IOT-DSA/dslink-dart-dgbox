@@ -256,17 +256,19 @@ main(List<String> args) async {
     }
   };
 
-  List mfj = map["Network"]["Configure_Access_Point"][r"$params"];
-  mfj.insertAll(0, [
-    {
-      "name": "wifi",
-      "type": "enum[]"
-    },
-    {
-      "name": "internet",
-      "type": "enum[]"
-    }
-  ]);
+  if (!(await isProbablyDGBox())) {
+    List mfj = map["Network"]["Configure_Access_Point"][r"$params"];
+    mfj.insertAll(0, [
+      {
+        "name": "wifi",
+        "type": "enum[]"
+      },
+      {
+        "name": "internet",
+        "type": "enum[]"
+      }
+    ]);
+  }
 
   link = new LinkProvider(args, "Host-",
     defaultNodes: map, profiles: {
