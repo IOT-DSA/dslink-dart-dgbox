@@ -657,6 +657,61 @@ String removeCaptivePortalConfig(String input) {
   return out.join("\n");
 }
 
+Future<String> getGatewayIp(String interface) async {
+  if (Platform.isMacOS) {
+    var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
+    String out = no.stdout;
+    var lines = out.split("\n");
+    for (var line in lines) {
+      if (line.startsWith("Router: ")) {
+        return line.substring("Router: ".length);
+      }
+    }
+    return "unknown";
+  }
+
+  var ro = await Process.run("route", ["-n"]);
+  List<String> lines = ro.stdout.toString().split("\n");
+  for (var line in lines) {
+    var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
+    parts = parts.map((x) => x.trim()).toList();
+    parts.removeWhere((x) => x.isEmpty);
+    var iface = parts[7];
+    if (iface == interface && parts[1] != "0.0.0.0") {
+      return parts[1];
+    }
+  }
+  return "0.0.0.0";
+}
+
+Future<String> getSubnetIp(String interface) async {
+  if (Platform.isMacOS) {
+    var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
+    String out = no.stdout;
+    var lines = out.split("\n");
+    for (var line in lines) {
+      if (line.startsWith("Subnet mask: ")) {
+        return line.substring("Subnet mask: ".length);
+      }
+    }
+    return "unknown";
+  }
+
+  var ro = await Process.run("route", ["-n"]);
+  print(ro.stdout);
+  List<String> lines = ro.stdout.toString().split("\n");
+  for (var line in lines) {
+    var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
+    parts = parts.map((x) => x.trim()).toList();
+    parts.removeWhere((x) => x.isEmpty);
+    var iface = parts[7];
+    if (iface == interface && parts[2] != "0.0.0.0") {
+      return parts[2];
+    }
+  }
+  return "0.0.0.0";
+}
+
 String createSystemTime(DateTime date) {
   var format = new DateFormat("MMddHHmmyyyy.ss");
   return format.format(date);

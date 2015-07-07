@@ -364,6 +364,18 @@ main(List<String> args) async {
         "address": x.address
       });
     }),
+    "getSubnetIp": addAction((Path path, Map<String, dynamic> params) async {
+      var name = new Path(path.parentPath).name;
+      return {
+        "subnet": await getSubnetIp(name)
+      };
+    }),
+    "getGatewayIp": addAction((Path path, Map<String, dynamic> params) async {
+      var name = new Path(path.parentPath).name;
+      return {
+        "gateway": await getGatewayIp(name)
+      };
+    }),
     "setWifiNetwork": addAction((Path path, Map<String, dynamic> params) async {
       var name = new Path(path.parentPath).name;
       var ssid = params["ssid"];
@@ -631,6 +643,32 @@ syncNetworkStuff() async {
       r"$columns": [
         {
           "name": "address",
+          "type": "string"
+        }
+      ]
+    };
+
+    m["Get_Subnet"] = {
+      r"$name": "Get Subnet",
+      r"$invokable": "write",
+      r"$is": "getSubnetIp",
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "subnet",
+          "type": "string"
+        }
+      ]
+    };
+
+    m["Get_Gateway"] = {
+      r"$name": "Get Gateway",
+      r"$invokable": "write",
+      r"$is": "getGatewayIp",
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "gateway",
           "type": "string"
         }
       ]
