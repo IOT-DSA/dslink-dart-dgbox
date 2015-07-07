@@ -481,6 +481,31 @@ main(List<String> args) async {
       }
 
       return m;
+    }),
+    "enableCaptivePortal": addAction((Map<String, dynamic> params) async {
+      var conf = await readCaptivePortalConfig();
+      conf = removeCaptivePortalConfig(conf);
+      SimpleActionNode gaps = link["/Network/Get_Access_Point_Settings"];
+      var cpn = await gaps.onInvoke({});
+      if (cpn != null && cpn.containsKey("ip")) {
+        conf += "\n" + getDnsMasqCaptivePortal(cpn["ip"]);
+      }
+      await writeCaptivePortalConfig(conf);
+      await restartDnsMasq();
+
+      return {
+        "success": true
+      };
+    }),
+    "disableCaptivePortal": addAction((Map<String, dynamic> params) async {
+      var conf = await readCaptivePortalConfig();
+      conf = removeCaptivePortalConfig(conf);
+      await writeCaptivePortalConfig(conf);
+      await restartDnsMasq();
+
+      return {
+        "success": true
+      };
     })
   }, autoInitialize: false);
 

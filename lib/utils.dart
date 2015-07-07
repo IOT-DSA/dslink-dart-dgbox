@@ -595,4 +595,52 @@ Future<bool> isProbablyDGBox() async {
   return _dgbox = content.contains("Marvell GuruPlug Reference Board");
 }
 
+File _dnsMasqFile = new File("/etc/dnsmaq.conf");
+
+Future<String> readCaptivePortalConfig() async {
+  return await _dnsMasqFile.readAsString();
+}
+
+Future writeCaptivePortalConfig(String config) async {
+  await _dnsMasqFile.writeAsString(config);
+}
+
+Future<bool> hasCaptivePortalInConfig() async {
+  var content = await _dnsMasqFile.readAsString();
+  if (content.contains("## Begin DSA Host DSLink ##")) {
+    return true;
+  }
+  return false;
+}
+
 bool _dgbox;
+
+String getDnsMasqCaptivePortal(String address) {
+  return [
+    "## Begin DSA Host DSLink ##",
+    "address=/#/${address}",
+    "## End DSA Host DSLink ##"
+  ].join("\n");
+}
+
+Future restartDnsMasq() async {
+  if (await fileExists("/etc/init.d/dnsmasq")) {
+    await exec("service", args: ["dnsmasq", "restart"]);
+  } else {
+    await exec("systemctl", args: ["restart", "dnsmasq"]);
+  }
+}
+
+String removeCaptivePortalConfig(String input) {
+  var lines = input.split("\n");
+  var out = [];
+  var flag = false;
+  for (var line in lines) {
+    if (line == "## Begin DSA Host DSLink ##" || line == "## End DSA Host DSLink ##") {
+      flag = !flag;
+    } else if (!flag) {
+      out.add(line);
+    }
+  }
+  return out.join("\n");
+}
