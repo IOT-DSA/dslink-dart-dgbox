@@ -676,6 +676,7 @@ Future<String> getGatewayIp(String interface) async {
     var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
     parts = parts.map((x) => x.trim()).toList();
     parts.removeWhere((x) => x.isEmpty);
+    print(parts);
     var iface = parts[7];
     if (iface == interface && parts[1] != "0.0.0.0") {
       return parts[1];
@@ -698,7 +699,6 @@ Future<String> getSubnetIp(String interface) async {
   }
 
   var ro = await Process.run("route", ["-n"]);
-  print(ro.stdout);
   List<String> lines = ro.stdout.toString().split("\n");
   for (var line in lines) {
     var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
