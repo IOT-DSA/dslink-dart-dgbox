@@ -586,6 +586,10 @@ Future setCurrentTimezone(String name) async {
 }
 
 Future<bool> isProbablyDGBox() async {
+  if (!Platform.isLinux) {
+    return false;
+  }
+
   if (_dgbox != null) {
     return _dgbox;
   }
