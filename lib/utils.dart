@@ -604,7 +604,7 @@ Future<bool> isProbablyDGBox() async {
   var file = new File("/proc/cpuinfo");
   var content = await file.readAsString();
 
-  return _dgbox = content.contains("Marvell GuruPlug Reference Board");
+  return _dgbox = content.contains("Feroceon 88FR131 rev 1 (v5l)");
 }
 
 File _dnsMasqFile = new File("/etc/dnsmaq.conf");
