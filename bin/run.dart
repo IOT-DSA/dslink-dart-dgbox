@@ -33,9 +33,12 @@ verifyDependencies() async {
   }
 
   List<String> tools = [
-    "hostapd",
     "dnsmasq"
   ];
+
+  if (!(await isProbablyDGBox())) {
+    tools.add("hostapd");
+  }
 
   for (var tool in tools) {
     if (await findExecutable(tool) == null) {
