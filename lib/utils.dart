@@ -677,6 +677,7 @@ Future<String> getGatewayIp(String interface) async {
     var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
     parts = parts.map((x) => x.trim()).toList();
     parts.removeWhere((x) => x.isEmpty);
+    print(line);
     var iface = parts[7];
     if (iface == interface && parts[1] != "0.0.0.0") {
       return parts[1];
