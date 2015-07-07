@@ -5,6 +5,7 @@ import "dart:convert";
 import "dart:io";
 
 import "package:path/path.dart" as pathlib;
+import "package:intl/intl.dart";
 
 typedef void ProcessHandler(Process process);
 typedef void OutputHandler(String str);
@@ -647,4 +648,9 @@ String removeCaptivePortalConfig(String input) {
     }
   }
   return out.join("\n");
+}
+
+String createSystemTime(DateTime date) {
+  var format = new DateFormat("MMddHHmmyyyy.ss");
+  return format.format(date);
 }

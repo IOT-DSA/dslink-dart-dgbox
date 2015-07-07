@@ -4,3 +4,4 @@ dependencies:
   dslink:
     git: git://github.com/IOT-DSA/sdk-dslink-dart.git
   path: any
+  intl: "^0.12.4"

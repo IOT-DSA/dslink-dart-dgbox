@@ -128,6 +128,39 @@ main(List<String> args) async {
       r"$type": "string",
       "?value": Platform.localHostname
     },
+    "Get_Current_Time": {
+      r"$name": "Get Current Time",
+      r"$is": "getCurrentTime",
+      r"$invokable": "read",
+      r"$columns": [
+        {
+          "name": "time",
+          "type": "string"
+        }
+      ]
+    },
+    "Set_Current_Time": {
+      r"$name": "Set Current Time",
+      r"$invokable": "write",
+      r"$is": "setDateTime",
+      r"$params": [
+        {
+          "name": "time",
+          "type": "string"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "success",
+          "type": "bool"
+        },
+        {
+          "name": "message",
+          "type": "string"
+        }
+      ],
+      r"$result": "values"
+    },
     "Timezone": {
       r"$type": "string",
       r"?value": await getCurrentTimezone(),
@@ -422,6 +455,26 @@ main(List<String> args) async {
         }).toList();
       } catch (e) {
         return [];
+      }
+    }),
+    "getCurrentTime": addAction((Map<String, dynamic> params) {
+      return {
+        "time": new DateTime.now().toIso8601String()
+      };
+    }),
+    "setDateTime": addAction((Map<String, dynamic> params) async {
+      try {
+        var time = DateTime.parse(params["time"]);
+        var result = await Process.run("date", [createSystemTime(time)]);
+        return {
+          "success": result.exitCode == 0,
+          "message": ""
+        };
+      } catch (e) {
+        return {
+          "success": false,
+          "message": e.toString()
+        };
       }
     }),
     "getAccessPointConfiguration": addAction((Path path, Map<String, dynamic> params) async {
