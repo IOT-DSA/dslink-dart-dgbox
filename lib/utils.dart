@@ -548,7 +548,9 @@ Future<List<String>> getAllTimezones() async {
   return zones;
 }
 
-Future<String> installPackage(String pkg) async {
+bool _hasAptUpdated = false;
+
+Future installPackage(String pkg) async {
   if (Platform.isMacOS) {
     throw new Exception("Installing Packages on Mac OS X is not supported.");
   }
@@ -567,6 +569,11 @@ Future<String> installPackage(String pkg) async {
   if (isArchLinux) {
     await runCommand("pacman", ["-S", pkg]);
   } else if (isDebian) {
+    if (!_hasAptUpdated) {
+      await runCommand("apt-get", ["update"]);
+      _hasAptUpdated = true;
+    }
+
     await runCommand("apt-get", ["install", pkg]);
   } else {
     print("Unknown Linux Distribution. Please install the package '${pkg}' with your distribution's package manager.");

@@ -54,7 +54,7 @@ verifyDependencies() async {
     }
   }
 
-  if (await findExecutable("hotspotd") == null) {
+  if (await findExecutable("hotspotd") == null && !(await isProbablyDGBox())) {
     var result = await exec("python2", args: [
       "setup.py",
       "install"
