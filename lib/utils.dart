@@ -326,16 +326,20 @@ Future configureNetworkManual(
 
   await Process.run("killall", ["dhclient"]);
 
-  var resultA =
+  var gw = await getGatewayIp(interface);
+
+  await Process.run("route", ["add", "del", "default", "gw", gw, interface]);
+
+  var resultB =
       await Process.run("route", ["add", "default", "gw", gateway, interface]);
-  if (resultA.exitCode != 0) {
+  if (resultB.exitCode != 0) {
     return false;
   }
 
-  var resultB =
+  var resultC =
       await Process.run("ifconfig", [interface, ip, "netmask", netmask]);
 
-  return resultB.exitCode == 0;
+  return resultC.exitCode == 0;
 }
 
 Future<String> getWifiNetwork(String interface) async {
@@ -679,7 +683,6 @@ Future<String> getGatewayIp(String interface) async {
     parts = parts.map((x) => x.trim()).toList();
     parts.removeWhere((x) => x.isEmpty);
     var iface = parts[7];
-    print(parts);
     if (iface == interface && parts[1] != "0.0.0.0") {
       return parts[1];
     }
