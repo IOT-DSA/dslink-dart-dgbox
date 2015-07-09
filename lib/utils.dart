@@ -682,6 +682,11 @@ Future<String> getGatewayIp(String interface) async {
     var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
     parts = parts.map((x) => x.trim()).toList();
     parts.removeWhere((x) => x.isEmpty);
+
+    if (parts.length < 7) {
+      continue;
+    }
+
     var iface = parts[7];
     if (iface == interface && parts[1] != "0.0.0.0") {
       return parts[1];
@@ -708,15 +713,29 @@ Future<String> getSubnetIp(String interface) async {
   var ro = await Process.run("route", ["-n"]);
   List<String> lines = ro.stdout.toString().split("\n");
   for (var line in lines) {
-    var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
+    var parts = reflix(line).split(" ");
     parts = parts.map((x) => x.trim()).toList();
     parts.removeWhere((x) => x.isEmpty);
+
+    if (parts.length < 7) {
+      continue;
+    }
+
     var iface = parts[7];
     if (iface == interface && parts[2] != "0.0.0.0") {
       return parts[2];
     }
   }
   return "0.0.0.0";
+}
+
+String reflix(String n) {
+  while (n.contains("  ")) {
+    n = n.replaceAll("  ", " ");
+  }
+
+  n = n.replaceAll("\t", " ");
+  return n;
 }
 
 String createSystemTime(DateTime date) {
