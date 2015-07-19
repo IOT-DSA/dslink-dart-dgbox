@@ -88,11 +88,10 @@ main(List<String> args) async {
     var result = await Process.run("id", ["-u"]);
 
     if (result.stdout.trim() != "0") {
-      print("This link must be run as the superuser.");
-      exit(0);
+      print("This link should be ran as the superuser.");
+    } else {
+      await verifyDependencies();
     }
-
-    await verifyDependencies();
   }
 
   var map = {
