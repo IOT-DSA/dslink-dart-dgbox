@@ -5,7 +5,7 @@ import "dart:io";
 import "package:dslink/dslink.dart" hide Link;
 import "package:dslink/nodes.dart";
 
-import "package:dslink_system/utils.dart";
+import "package:dslink_host/utils.dart";
 
 LinkProvider link;
 

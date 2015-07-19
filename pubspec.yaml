@@ -1,4 +1,4 @@
-name: dslink_system
+name: dslink_host
 description: Control Machines
 dependencies:
   dslink:
