@@ -94,6 +94,16 @@ main(List<String> args) async {
     }
   }
 
+  if (await isProbablyDGBox()) {
+    try {
+      await getAccessPointConfig();
+    } catch (e) {
+      await setAccessPointConfig("DGBox", "dg13ox11", "192.168.1.");
+    }
+  }
+
+  var accessPointConfig = await getAccessPointConfig();
+
   var map = {
     "Shutdown": {
       r"$invokable": "write",
@@ -130,16 +140,10 @@ main(List<String> args) async {
       r"$type": "string",
       "?value": Platform.localHostname
     },
-    "Get_Current_Time": {
-      r"$name": "Get Current Time",
-      r"$is": "getCurrentTime",
-      r"$invokable": "read",
-      r"$columns": [
-        {
-          "name": "time",
-          "type": "string"
-        }
-      ]
+    "Current_Time": {
+      r"$name": "Current Time",
+      r"$type": "string",
+      "?value": new DateTime.now().toIso8601String()
     },
     "Set_Current_Time": {
       r"$name": "Set Current Time",
@@ -203,106 +207,73 @@ main(List<String> args) async {
         }
       ]
     },
-    "Network": {
-      r"$name": "Network",
-      "Start_Access_Point": {
-        r"$name": "Start Access Point",
+    "Name_Servers": {
+      r"$name": "Nameservers",
+      r"$type": "string",
+      "?value": (await getCurrentNameServers()).join(",")
+    },
+    "Access_Point": {
+      r"$name": "Access Point",
+      "Start": {
+        r"$name": "Start",
         r"$is": "startAccessPoint",
         r"$invokable": "write",
         r"$result": "values"
       },
-      "Stop_Access_Point": {
-        r"$name": "Stop Access Point",
+      "Stop": {
+        r"$name": "Stop",
         r"$is": "stopAccessPoint",
         r"$invokable": "write",
         r"$result": "values"
       },
-      "Restart_Access_Point": {
-        r"$name": "Restart Access Point",
+      "Restart": {
+        r"$name": "Restart",
         r"$is": "restartAccessPoint",
         r"$invokable": "write",
         r"$result": "values"
       },
-      "Get_Access_Point_Status": {
-        r"$name": "Get Access Point Status",
-        r"$is": "getAccessPointStatus",
-        r"$invokable": "write",
-        r"$result": "values",
-        r"$columns": [
-          {
-            "name": "up",
-            "type": "bool"
-          }
-        ]
+      "Status": {
+        r"$type": "bool",
+        "?value": await isAccessPointOn()
       },
-      "Get_Access_Point_Settings": {
-        r"$name": "Get Access Point Settings",
-        r"$is": "getAccessPointConfiguration",
-        r"$invokable": "write",
-        r"$columns": [
-          {
-            "name": "key",
-            "type": "string"
-          },
-          {
-            "name": "value",
-            "type": "string"
-          }
-        ],
-        r"$result": "table"
-      },
-      "Configure_Access_Point": {
-        r"$name": "Configure Access Point",
-        r"$is": "configureAccessPoint",
-        r"$invokable": "write",
-        r"$params": [
-          {
-            "name": "ssid",
-            "type": "string",
-            "default": "DSA"
-          },
-          {
-            "name": "password",
-            "type": "string"
-          },
-          {
-            "name": "ip",
-            "type": "string",
-            "default": "192.168.42.1"
-          }
-        ],
-        r"$result": "values",
-        r"$columns": [
-          {
-            "name": "success",
-            "type": "bool"
-          },
-          {
-            "name": "message",
-            "type": "string"
-          }
-        ]
-      },
-      "Name_Servers": {
-        r"$name": "Nameservers",
+      "IP": {
         r"$type": "string",
-        "?value": (await getCurrentNameServers()).join(",")
+        "?value": accessPointConfig["ip"],
+        r"$writable": "write"
+      },
+      "SSID": {
+        r"$type": "string",
+        "?value": accessPointConfig["ssid"],
+        r"$writable": "write"
+      },
+      "Password": {
+        r"$type": "string",
+        "?value": accessPointConfig["password"],
+        r"$writable": "write",
+        r"$editor": "password"
+      },
+      "Netmask": {
+        r"$type": "string",
+        "?value": accessPointConfig["netmask"]
       }
-    }
+    },
+    "Ethernet": {},
+    "Wireless": {}
   };
 
   if (!(await isProbablyDGBox())) {
-    List mfj = map["Network"]["Configure_Access_Point"][r"$params"];
-    mfj.insertAll(0, [
-      {
-        "name": "wifi",
-        "type": "enum[]"
+    map["Access_Point"].addAll({
+      "Interface": {
+        r"$type": "enum[]",
+        "?value": (await getAccessPointConfig())["wlan"],
+        r"$writable": "write"
       },
-      {
-        "name": "internet",
-        "type": "enum[]"
+      "Internet": {
+        r"$type": "enum[]",
+        "?value": (await getAccessPointConfig())["inet"],
+        r"$writable": "write"
       }
-    ]);
+    });
   }
 
   link = new LinkProvider(args, "Host-",
@@ -318,12 +289,8 @@ main(List<String> args) async {
     }),
     "restartAccessPoint": addAction((Map<String, dynamic> params) async {
       await stopAccessPoint();
+      await new Future.delayed(const Duration(seconds: 5));
       await startAccessPoint();
-    }),
-    "getAccessPointStatus": addAction((Map<String, dynamic> params) async {
-      return {
-        "up": await isAccessPointOn()
-      };
     }),
     "shutdown": addAction((Map<String, dynamic> params) {
       System.shutdown();
@@ -388,65 +355,6 @@ main(List<String> args) async {
       await setCurrentTimezone(params["timezone"]);
       await updateTimezone();
     }),
-    "configureAccessPoint": addAction((Path path, Map<String, dynamic> params) async {
-      String ssid = params["ssid"];
-      String password = params["password"];
-      String ip = params["ip"];
-
-      if (await isProbablyDGBox()) {
-        var uapConfig = [
-          "ADDRESS=${ip}",
-          "SSID=\"${ssid}\"",
-          "PASSKEY=\"${password}\""
-        ];
-
-        var uapFile = new File("/root/.uap0.conf");
-        await uapFile.writeAsString(uapConfig.join("\n"));
-        var ml = ip.split(".").take(3).join(".");
-        var dhcpConfig = [
-          "start\t${ml}.100",
-          "end\t${ml}.200",
-          "interface\tuap0",
-          "opt\tlease\t86400",
-          "opt\trouter\t${ml}.1",
-          "opt\tsubnet\t255.255.255.0",
-          "opt\tdns\t${ml}.1",
-          "opt\tdomain\tlocaldomain",
-          "max_leases\t101",
-          "lease_file\t/var/lib/udhcpd.leases",
-          "auto_time\t5"
-        ];
-        var dhcpFile = new File("/etc/udhcpd.conf");
-        await dhcpFile.writeAsString(dhcpConfig.join("\n"));
-        return {
-          "success": true,
-          "message": "Success!"
-        };
-      }
-
-      var wifi = params["wifi"];
-      var internet = params["internet"];
-      if (wifi == internet) {
-        return {
-          "success": false,
-          "message": "Access Point Interface cannot be the same as the Internet Interface"
-        };
-      }
-
-      var config = generateHotspotDaemonConfig(wifi, internet, ssid, ip, "255.255.255.0", password);
-
-      var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
-      if (!(await file.exists())) {
-        await file.create(recursive: true);
-      }
-
-      await file.writeAsString(config);
-
-      return {
-        "success": true,
-        "message": "Success!"
-      };
-    }),
     "executeCommand": addAction((Map<String, dynamic> params) async {
       var cmd = params["command"];
       var result = await exec("bash", args: ["-c", cmd], writeToBuffer: true);
@@ -471,11 +379,6 @@ main(List<String> args) async {
         return [];
       }
     }),
-    "getCurrentTime": addAction((Map<String, dynamic> params) {
-      return {
-        "time": new DateTime.now().toIso8601String()
-      };
-    }),
     "setDateTime": addAction((Map<String, dynamic> params) async {
       try {
         var time = DateTime.parse(params["time"]);
@@ -491,69 +394,10 @@ main(List<String> args) async {
         };
       }
     }),
-    "getAccessPointConfiguration": addAction((Path path, Map<String, dynamic> params) async {
-      if (await isProbablyDGBox()) {
-        var file = new File("/root/.uap0.conf");
-        var content = await file.readAsString();
-        var lines = content.split("\n");
-        var map = {};
-        for (var line in lines) {
-          line = line.trim();
-
-          if (line.isEmpty) {
-            continue;
-          }
-
-          var parts = line.split("=");
-          var key = parts[0];
-          var value = parts.skip(1).join("=");
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.substring(1, value.length - 1);
-          }
-
-          map[key] = value;
-        }
-        return [
-          {
-            "key": "ip",
-            "value": map["ADDRESS"]
-          },
-          {
-            "key": "ssid",
-            "value": map["SSID"]
-          },
-          {
-            "key": "password",
-            "value": map["PASSKEY"]
-          },
-          {
-            "key": "netmask",
-            "value": "255.255.255.0"
-          }
-        ];
-      }
-
-      var m = [];
-      var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
-      if (!(await file.exists())) {
-        return [];
-      }
-
-      var json = JSON.decode(await file.readAsString());
-      for (var key in json.keys) {
-        m.add({
-          "key": key.toLowerCase(),
-          "value": json[key]
-        });
-      }
-
-      return m;
-    }),
     "enableCaptivePortal": addAction((Map<String, dynamic> params) async {
       var conf = await readCaptivePortalConfig();
       conf = removeCaptivePortalConfig(conf);
-      SimpleActionNode gaps = link["/Network/Get_Access_Point_Settings"];
-      var cpn = await gaps.onInvoke({});
+      var cpn = await getAccessPointConfig();
       if (cpn != null && cpn.containsKey("ip")) {
         conf += "\n" + getDnsMasqCaptivePortal(cpn["ip"]);
       }
@@ -579,11 +423,28 @@ main(List<String> args) async {
   link.init();
   link.connect();
 
-  timer = new Timer.periodic(new Duration(seconds: 15), (_) async {
-    await syncNetworkStuff();
+  timer = new Timer.periodic(const Duration(seconds: 5), (_) async {
+    await synchronize();
   });
 
-  await syncNetworkStuff();
+  await synchronize();
+
+  SimpleNode currentTimeNode = link.getNode("/Current_Time");
+
+  Scheduler.every(Interval.HALF_SECOND, () {
+    if (currentTimeNode.hasSubscriber) {
+      currentTimeNode.updateValue(new DateTime.now().toIso8601String());
+    }
+  });
+
+  link["/Access_Point/IP"].subscribe(updateAccessPointSettings);
+  link["/Access_Point/SSID"].subscribe(updateAccessPointSettings);
+  link["/Access_Point/Password"].subscribe(updateAccessPointSettings);
+
+  if (!(await isProbablyDGBox())) {
+    link["/Access_Point/Internet"].subscribe(updateAccessPointSettings);
+    link["/Access_Point/Interface"].subscribe(updateAccessPointSettings);
+  }
 }
 
 Timer timer;
@@ -604,19 +465,26 @@ Future<List<String>> listNetworkInterfaces() async {
   return ifaces;
 }
 
-syncNetworkStuff() async {
+synchronize() async {
   var nameservers = (await getCurrentNameServers()).join(",");
 
   if (nameservers.isNotEmpty) {
-    link.updateValue("/Network/Name_Servers", nameservers);
+    link.updateValue("/Name_Servers", nameservers);
   }
 
   List<String> ifaces = await listNetworkInterfaces();
-  SimpleNode inode = link["/Network"];
+  SimpleNode ethernetNode = link["/Ethernet"];
+  SimpleNode wirelessNode = link["/Wireless"];
 
-  for (SimpleNode child in inode.children.values) {
+  for (SimpleNode child in ethernetNode.children.values) {
     if (child.configs[r"$host_network"] != null && !ifaces.contains(child.configs[r"$host_network"])) {
-      inode.removeChild(child);
+      ethernetNode.removeChild(child);
+    }
+  }
+
+  for (SimpleNode child in wirelessNode.children.values) {
+    if (child.configs[r"$host_network"] != null && !ifaces.contains(child.configs[r"$host_network"])) {
+      wirelessNode.removeChild(child);
     }
   }
 
@@ -624,7 +492,7 @@ syncNetworkStuff() async {
   var names = [];
 
   for (String iface in ifaces) {
-    if (iface == "lo" || inode.children.containsKey(iface)) {
+    if (iface == "lo") {
       continue;
     }
 
@@ -634,43 +502,21 @@ syncNetworkStuff() async {
 
     m[r"$host_network"] = iface;
 
-    m["Get_Addresses"] = {
-      r"$name": "Get Addresses",
-      r"$invokable": "write",
-      r"$is": "getNetworkAddresses",
-      r"$result": "table",
-      r"$columns": [
-        {
-          "name": "address",
-          "type": "string"
-        }
-      ]
+    var addrs = await getNetworkAddresses(iface);
+
+    m["Addresses"] = {
+      r"$type": "string",
+      "?value": addrs.join(",")
     };
 
-    m["Get_Subnet"] = {
-      r"$name": "Get Subnet",
-      r"$invokable": "write",
-      r"$is": "getSubnetIp",
-      r"$result": "values",
-      r"$columns": [
-        {
-          "name": "subnet",
-          "type": "string"
-        }
-      ]
+    m["Subnet"] = {
+      r"$type": "string",
+      "?value": await getSubnetIp(iface)
     };
 
-    m["Get_Gateway"] = {
-      r"$name": "Get Gateway",
-      r"$invokable": "write",
-      r"$is": "getGatewayIp",
-      r"$result": "values",
-      r"$columns": [
-        {
-          "name": "gateway",
-          "type": "string"
-        }
-      ]
+    m["Gateway"] = {
+      r"$type": "string",
+      "?value": await getGatewayIp(iface)
     };
 
     m["Configure_Automatically"] = {
@@ -754,14 +600,42 @@ syncNetworkStuff() async {
           }
         ]
       };
-    }
 
-    link.addNode("/Network/${iface}", m);
+      if (wirelessNode.children.containsKey(iface)) {
+        var n = link.getNode("/Wireless/${iface}");
+        n.load(m);
+      } else {
+        link.addNode("/Wireless/${iface}", m);
+      }
+    } else {
+      if (ethernetNode.children.containsKey(iface)) {
+        var n = link.getNode("/Ethernet/${iface}");
+        n.load(m);
+      } else {
+        link.addNode("/Ethernet/${iface}", m);
+      }
+    }
   }
 
+  link.val("/Access_Point/Status", await isAccessPointOn());
+
   if (!(await isProbablyDGBox())) {
-    (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[0]["type"] = buildEnumType(wifis);
-    (link["/Network/Configure_Access_Point"].configs[r"$params"] as List)[1]["type"] = buildEnumType(names);
+    link["/Access_Point/Internet"].configs[r"$type"] = buildEnumType(ifaces);
+    link["/Access_Point/Interface"].configs[r"$type"] = buildEnumType(ifaces);
+  }
+}
+
+Future updateAccessPointSettings([ValueUpdate update]) async {
+  var ip = link.val("/Access_Point/IP");
+  var ssid = link.val("/Access_Point/SSID");
+  var password = link.val("/Access_Point/Password");
+
+  if (await isProbablyDGBox()) {
+    await setAccessPointConfig(ssid, password, ip);
+  } else {
+    var internet = link.val("/Access_Point/Internet");
+    var interface = link.val("/Access_Point/Interface");
+    await setAccessPointConfig(ssid, password, ip, interface, internet);
   }
 }
 
@@ -777,4 +651,104 @@ Future<String> getPythonModuleDirectory() async {
 
 Future updateTimezone() async {
   link.updateValue("/Timezone", await getCurrentTimezone());
+}
+
+Future<Map<String, dynamic>> getAccessPointConfig() async {
+  if (await isProbablyDGBox()) {
+    var file = new File("/root/.uap0.conf");
+    var content = await file.readAsString();
+    var lines = content.split("\n");
+    var map = {};
+    for (var line in lines) {
+      line = line.trim();
+
+      if (line.isEmpty) {
+        continue;
+      }
+
+      var parts = line.split("=");
+      var key = parts[0];
+      var value = parts.skip(1).join("=");
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.substring(1, value.length - 1);
+      }
+
+      map[key] = value;
+    }
+
+    return {
+      "ip": map["ADDRESS"],
+      "ssid": map["SSID"],
+      "password": map["PASSKEY"],
+      "netmask": "255.255.255.0"
+    };
+  }
+
+  var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
+  if (!(await file.exists())) {
+    return {};
+  }
+
+  var json  = JSON.decode(await file.readAsString());
+
+  return {
+    "ssid": json["SSID"],
+    "ip": json["ip"],
+    "password": json["password"],
+    "netmask": json["netmask"]
+  };
+}
+
+Future setAccessPointConfig(String ssid, String password, String ip, [String wifi, String internet]) async {
+  if (await isProbablyDGBox()) {
+    var uapConfig = [
+      "ADDRESS=${ip}",
+      "SSID=\"${ssid}\"",
+      "PASSKEY=\"${password}\""
+    ];
+
+    var uapFile = new File("/root/.uap0.conf");
+    await uapFile.writeAsString(uapConfig.join("\n"));
+    var ml = ip.split(".").take(3).join(".");
+    var dhcpConfig = [
+      "start\t${ml}.100",
+      "end\t${ml}.200",
+      "interface\tuap0",
+      "opt\tlease\t86400",
+      "opt\trouter\t${ml}.1",
+      "opt\tsubnet\t255.255.255.0",
+      "opt\tdns\t${ml}.1",
+      "opt\tdomain\tlocaldomain",
+      "max_leases\t101",
+      "lease_file\t/var/lib/udhcpd.leases",
+      "auto_time\t5"
+    ];
+    var dhcpFile = new File("/etc/udhcpd.conf");
+    await dhcpFile.writeAsString(dhcpConfig.join("\n"));
+    return;
+  }
+
+  if (wifi == internet) {
+    return;
+  }
+
+  var config = generateHotspotDaemonConfig(wifi, internet, ssid, ip, "255.255.255.0", password);
+
+  var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
+  if (!(await file.exists())) {
+    await file.create(recursive: true);
+  }
+
+  await file.writeAsString(config);
+}
+
+Future<List<String>> getNetworkAddresses(String name) async {
+  var interfaces = await NetworkInterface.list();
+  var interface = interfaces.firstWhere((x) => x.name == name, orElse: () => null);
+
+  if (interface == null) {
+    return [];
+  }
+
+  return interface.addresses.map((x) => x.address).toList();
 }

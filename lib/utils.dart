@@ -662,70 +662,74 @@ String removeCaptivePortalConfig(String input) {
 }
 
 Future<String> getGatewayIp(String interface) async {
-  if (Platform.isMacOS) {
-    var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
-    String out = no.stdout;
-    var lines = out.split("\n");
+  try {
+    if (Platform.isMacOS) {
+      var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
+      String out = no.stdout;
+      var lines = out.split("\n");
+      for (var line in lines) {
+        if (line.startsWith("Router: ")) {
+          return line.substring("Router: ".length);
+        }
+      }
+      return "unknown";
+    }
+
+    var ro = await Process.run("route", ["-n"]);
+    List<String> lines = ro.stdout.toString().split("\n");
+    lines.removeAt(0);
+    lines.removeAt(0);
     for (var line in lines) {
-      if (line.startsWith("Router: ")) {
-        return line.substring("Router: ".length);
+      var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
+      parts = parts.map((x) => x.trim()).toList();
+      parts.removeWhere((x) => x.isEmpty);
+
+      if (parts.length < 7) {
+        continue;
+      }
+
+      var iface = parts[7];
+      if (iface == interface && parts[1] != "0.0.0.0") {
+        return parts[1];
       }
     }
-    return "unknown";
-  }
-
-  var ro = await Process.run("route", ["-n"]);
-  List<String> lines = ro.stdout.toString().split("\n");
-  lines.removeAt(0);
-  lines.removeAt(0);
-  for (var line in lines) {
-    var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
-    parts = parts.map((x) => x.trim()).toList();
-    parts.removeWhere((x) => x.isEmpty);
-
-    if (parts.length < 7) {
-      continue;
-    }
-
-    var iface = parts[7];
-    if (iface == interface && parts[1] != "0.0.0.0") {
-      return parts[1];
-    }
-  }
+  } catch (e) {}
   return "0.0.0.0";
 }
 
 Future<String> getSubnetIp(String interface) async {
-  if (Platform.isMacOS) {
-    var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
-    String out = no.stdout;
-    var lines = out.split("\n");
-    lines.removeAt(0);
-    lines.removeAt(0);
+  try {
+    if (Platform.isMacOS) {
+      var no = await Process.run("networksetup", ["-getinfo", await getNetworkServiceForInterface(interface)]);
+      String out = no.stdout;
+      var lines = out.split("\n");
+      lines.removeAt(0);
+      lines.removeAt(0);
+      for (var line in lines) {
+        if (line.startsWith("Subnet mask: ")) {
+          return line.substring("Subnet mask: ".length);
+        }
+      }
+      return "unknown";
+    }
+
+    var ro = await Process.run("route", ["-n"]);
+    List<String> lines = ro.stdout.toString().split("\n");
     for (var line in lines) {
-      if (line.startsWith("Subnet mask: ")) {
-        return line.substring("Subnet mask: ".length);
+      var parts = reflix(line).split(" ");
+      parts = parts.map((x) => x.trim()).toList();
+      parts.removeWhere((x) => x.isEmpty);
+
+      if (parts.length < 7) {
+        continue;
+      }
+
+      var iface = parts[7];
+      if (iface == interface && parts[2] != "0.0.0.0") {
+        return parts[2];
       }
     }
-    return "unknown";
-  }
-
-  var ro = await Process.run("route", ["-n"]);
-  List<String> lines = ro.stdout.toString().split("\n");
-  for (var line in lines) {
-    var parts = reflix(line).split(" ");
-    parts = parts.map((x) => x.trim()).toList();
-    parts.removeWhere((x) => x.isEmpty);
-
-    if (parts.length < 7) {
-      continue;
-    }
-
-    var iface = parts[7];
-    if (iface == interface && parts[2] != "0.0.0.0") {
-      return parts[2];
-    }
-  }
+  } catch (e) {}
   return "0.0.0.0";
 }
 
