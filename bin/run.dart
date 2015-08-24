@@ -252,7 +252,7 @@ main(List<String> args) async {
         r"$writable": "write",
         r"$editor": "password"
       },
-      "Netmask": {
+      "Subnet": {
         r"$type": "string",
         "?value": accessPointConfig["netmask"]
       }
@@ -297,7 +297,7 @@ main(List<String> args) async {
     }),
     "configureNetworkManual": addAction((Path path, Map<String, dynamic> params) async {
       var name = new Path(path.parentPath).name;
-      var result = await configureNetworkManual(name, params["ip"], params["netmask"], params["router"]);
+      var result = await configureNetworkManual(name, params["ip"], params["subnet"], params["router"]);
 
       return {
         "success": result
@@ -542,7 +542,7 @@ synchronize() async {
           "type": "string"
         },
         {
-          "name": "netmask",
+          "name": "subnet",
           "type": "string"
         },
         {
