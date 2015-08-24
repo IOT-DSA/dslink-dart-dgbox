@@ -143,29 +143,28 @@ main(List<String> args) async {
     "Current_Time": {
       r"$name": "Current Time",
       r"$type": "string",
-      "?value": new DateTime.now().toIso8601String()
-    },
-    "Set_Current_Time": {
-      r"$name": "Set Current Time",
-      r"$invokable": "write",
-      r"$is": "setDateTime",
-      r"$params": [
-        {
-          "name": "time",
-          "type": "string"
-        }
-      ],
-      r"$columns": [
-        {
-          "name": "success",
-          "type": "bool"
-        },
-        {
-          "name": "message",
-          "type": "string"
-        }
-      ],
-      r"$result": "values"
+      "?value": new DateTime.now().toIso8601String(),
+      "Set": {
+        r"$invokable": "write",
+        r"$is": "setDateTime",
+        r"$params": [
+          {
+            "name": "time",
+            "type": "string"
+          }
+        ],
+        r"$columns": [
+          {
+            "name": "success",
+            "type": "bool"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ],
+        r"$result": "values"
+      }
     },
     "Timezone": {
       r"$type": "string",
@@ -297,7 +296,7 @@ main(List<String> args) async {
     }),
     "configureNetworkManual": addAction((Path path, Map<String, dynamic> params) async {
       var name = new Path(path.parentPath).name;
-      var result = await configureNetworkManual(name, params["ip"], params["subnet"], params["router"]);
+      var result = await configureNetworkManual(name, params["ip"], params["subnet"], params["gateway"]);
 
       return {
         "success": result
@@ -599,6 +598,11 @@ synchronize() async {
             "type": "bool"
           }
         ]
+      };
+
+      m["SSID"] = {
+        r"$type": "string",
+        "?value": await getWifiNetwork(iface)
       };
 
       if (wirelessNode.children.containsKey(iface)) {

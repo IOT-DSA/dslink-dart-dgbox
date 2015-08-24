@@ -210,19 +210,31 @@ Future<bool> setWifiNetwork(
 
     return true;
   } else {
-    var args = [interface, "essid", ssid];
+    if (await isProbablyDGBox()) {
+      try {
+        var c = await WifiConfig.read();
+        c.passkey = password;
+        c.ssid = ssid;
+        await c.write();
+        return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+      } catch (e) {
+        return false;
+      }
+    } else {
+      var args = [interface, "essid", ssid];
 
-    if (password != null && password.isNotEmpty) {
-      args.addAll(["key", password]);
+      if (password != null && password.isNotEmpty) {
+        args.addAll(["key", password]);
+      }
+
+      var result = await Process.run("iwconfig", args);
+
+      if (result.exitCode != 0) {
+        return false;
+      }
+
+      return true;
     }
-
-    var result = await Process.run("iwconfig", args);
-
-    if (result.exitCode != 0) {
-      return false;
-    }
-
-    return true;
   }
 }
 
@@ -297,14 +309,32 @@ Future configureNetworkAutomatic(String interface) async {
     });
   }
 
-  var resultA =
-      await Process.run("ifconfig", [interface, "0.0.0.0", "0.0.0.0"]);
-  if (resultA.exitCode != 0) {
+  var script = await NetworkInterfaceScript.read();
+  var iface = script.getInterface(interface);
+
+  if (iface == null) {
     return false;
   }
 
-  await Process.run("dhclient", ["-r", interface]);
-  var resultB = await Process.run("dhclient", [interface]);
+  iface.netmask = null;
+  iface.gateway = null;
+  iface.address = null;
+
+  await script.write();
+  return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+}
+
+Future restartNetworkService(String iface, [bool wlan = false]) async {
+  if (wlan && await isProbablyDGBox()) {
+    await Process.run("pkill", ["dhclient"]);
+  }
+
+  await Process.run("ifdown", [iface]);
+  var resultB = await Process.run("ifup", [iface]);
+
+  if (wlan && await isProbablyDGBox()) {
+    await exec("bash", args: ["tools/dreamplug/wireless.sh", "client"]);
+  }
 
   return resultB.exitCode == 0;
 }
@@ -324,22 +354,189 @@ Future configureNetworkManual(
     });
   }
 
-  await Process.run("killall", ["dhclient"]);
+  var script = await NetworkInterfaceScript.read();
+  var iface = script.getInterface(interface);
 
-  var gw = await getGatewayIp(interface);
-
-  await Process.run("route", ["add", "del", "default", "gw", gw, interface]);
-
-  var resultB =
-      await Process.run("route", ["add", "default", "gw", gateway, interface]);
-  if (resultB.exitCode != 0) {
+  if (iface == null) {
     return false;
   }
 
-  var resultC =
-      await Process.run("ifconfig", [interface, ip, "netmask", netmask]);
+  iface.netmask = netmask;
+  iface.gateway = gateway;
+  iface.address = ip;
 
-  return resultC.exitCode == 0;
+  await script.write();
+
+  return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+}
+
+class WifiConfig {
+  String ssid;
+  String passkey;
+
+  WifiConfig([this.ssid, this.passkey]);
+
+  static WifiConfig parse(String input) {
+    var s = SSID_REGEX.firstMatch(input).group(1);
+    String p;
+    try {
+      p = PSK_REGEX.firstMatch(input).group(1);
+    } catch (e) {}
+    return new WifiConfig(s, p);
+  }
+
+  static Future<WifiConfig> read() async {
+    var file = new File("/root/.mlan.conf");
+    if (!(await file.exists())) {
+      return new WifiConfig();
+    }
+    return parse(await file.readAsString());
+  }
+
+  Future write() async {
+    var file = new File("/root/.mlan.conf");
+    await file.writeAsString(await build());
+  }
+
+  static final RegExp SSID_REGEX = new RegExp('ssid="(.*?)"');
+  static final RegExp PSK_REGEX = new RegExp('"#psk="(.*?)"');
+
+  Future<String> build() async {
+    var buff = new StringBuffer();
+    buff.writeln("network={");
+    buff.writeln('\tssid="${ssid}"');
+    if (passkey != null && passkey.isNotEmpty) {
+      buff.writeln("\tproto=WPA");
+      buff.writeln("\tkey_mgmt=WPA-PSK");
+      buff.writeln('\t#psk="${passkey}"');
+      var r = await Process.run("wpa_passphrase", [ssid, passkey]);
+      String x = r.stdout.split("\n")[3].trim().split("=").last;
+      buff.writeln('\tpsk="${x}"');
+    } else {
+      buff.writeln("\tkey_mgmt=NONE");
+    }
+    buff.writeln("}");
+    return buff.toString();
+  }
+}
+
+class NetworkInterfaceScript {
+  final List<NetworkInterfaceScriptEntry> entries;
+
+  NetworkInterfaceScript(this.entries);
+
+  NetworkInterfaceScriptEntry getInterface(String iface) {
+    return entries.firstWhere((x) => x.interface == iface, orElse: () => null);
+  }
+
+  static NetworkInterfaceScript parse(String input) {
+    List<String> lines = input.split("\n");
+    lines.removeWhere((x) => x.startsWith("#"));
+    var entries = [];
+    var sections = [];
+
+    var buffz = [];
+    for (var line in lines) {
+      if (line.isEmpty && buffz.isNotEmpty) {
+        buffz.removeWhere((x) => x.isEmpty || x.startsWith("auto "));
+        sections.add(buffz.map((n) => n.trim()).toList());
+        buffz = [];
+      } else {
+        buffz.add(line);
+      }
+    }
+
+    for (var section in sections) {
+      try {
+        var inf = section[0];
+        String iface;
+        String address;
+        String netmask;
+        String gateway;
+        String type;
+
+        var map = {};
+
+        for (var s in section.skip(1)) {
+          var p = s.split(" ");
+          map[p[0]] = p.skip(1).join(" ");
+        }
+
+        {
+          var parts = inf.split(" ");
+          iface = parts[1];
+          type = parts[3];
+        }
+
+        if (type == "static") {
+          address = map["address"];
+          netmask = map["netmask"];
+          gateway = map["gateway"];
+        }
+
+        if (type == "dhcp") {
+          entries.add(new NetworkInterfaceScriptEntry.dhcp(iface));
+        } else {
+          entries.add(new NetworkInterfaceScriptEntry(iface, address, netmask, gateway));
+        }
+      } catch (e) {}
+    }
+
+    return new NetworkInterfaceScript(entries);
+  }
+
+  static Future<NetworkInterfaceScript> read() async {
+    var file = new File("/etc/network/interfaces");
+    var content = await file.readAsString();
+
+    return NetworkInterfaceScript.parse(content);
+  }
+
+  write() async {
+    var file = new File("/etc/network/interfaces");
+    if (!(await file.parent.exists())) {
+      await file.parent.create(recursive: true);
+    }
+    await file.writeAsString(build());
+  }
+
+  String build() {
+    var buff = new StringBuffer();
+    for (var entry in entries) {
+      buff.writeln(entry.build());
+    }
+    return buff.toString();
+  }
+}
+
+class NetworkInterfaceScriptEntry {
+  final String interface;
+  String address;
+  String netmask;
+  String gateway;
+
+  NetworkInterfaceScriptEntry(this.interface, this.address, this.netmask, this.gateway);
+  NetworkInterfaceScriptEntry.dhcp(this.interface) : address = null, netmask = null, gateway = null;
+
+  String build() {
+    var buff = new StringBuffer();
+    if (interface == "lo") {
+      buff.writeln("auto ${interface}");
+      buff.writeln("iface lo inet loopback");
+      return buff.toString();
+    }
+
+    if (address == null) {
+      buff.writeln("iface ${interface} inet dhcp");
+    } else {
+      buff.writeln("iface ${interface} inet static");
+      buff.writeln("\taddress ${address}");
+      buff.writeln("\tnetmask ${netmask}");
+      buff.writeln("\tgateway ${gateway}");
+    }
+
+    return buff.toString();
+  }
 }
 
 Future<String> getWifiNetwork(String interface) async {
@@ -441,6 +638,19 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
     }
 
     return networks;
+  }
+}
+
+Future<String> getCurrentWifiNetwork(String iface) async {
+  if (Platform.isLinux) {
+    var result = await Process.run("iwgetid", [iface]);
+    String line = result.stdout.split("\n").first;
+    var parts = line.split("ESSID:");
+    var ssid = parts.skip(1).join();
+    ssid = ssid.substring(1, ssid.length - 1);
+    return ssid;
+  } else {
+    return "";
   }
 }
 
@@ -674,26 +884,27 @@ Future<String> getGatewayIp(String interface) async {
       }
       return "unknown";
     }
+  } catch (e) {}
 
-    var ro = await Process.run("route", ["-n"]);
+  try {
+    var script = await NetworkInterfaceScript.read();
+    var gw = script.getInterface(interface).gateway;
+    if (gw != null) {
+      return gw;
+    }
+  } catch (e) {
+  }
+
+  try {
+    var ro = await Process.run("ip", ["route", "show"]);
     List<String> lines = ro.stdout.toString().split("\n");
-    lines.removeAt(0);
-    lines.removeAt(0);
-    for (var line in lines) {
-      var parts = line.replaceAll("  ", "").replaceAll("\t", " ").split(" ");
-      parts = parts.map((x) => x.trim()).toList();
-      parts.removeWhere((x) => x.isEmpty);
-
-      if (parts.length < 7) {
-        continue;
-      }
-
-      var iface = parts[7];
-      if (iface == interface && parts[1] != "0.0.0.0") {
-        return parts[1];
-      }
+    lines.removeWhere((x) => !x.startsWith("default via "));
+    if (lines.isNotEmpty) {
+      var line = lines.first.split(" ")[2];
+      return line;
     }
   } catch (e) {}
+
   return "0.0.0.0";
 }
 
