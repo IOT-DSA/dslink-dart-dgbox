@@ -317,8 +317,10 @@ main(List<String> args) async {
         "configureNetworkManual": addAction((Path path,
             Map<String, dynamic> params) async {
           var name = new Path(path.parentPath).name;
+          String addr = params["addresses"];
+          List<String> addrs = addr.split(",");
           var result = await configureNetworkManual(
-              name, params["ip"], params["subnet"], params["gateway"]);
+              name, addrs.first, params["subnet"], params["gateway"]);
 
           return {
             "success": result
@@ -496,7 +498,7 @@ main(List<String> args) async {
 Timer timer;
 
 Future<List<String>> listNetworkInterfaces() async {
-  var result = await Process.run("ifconfig", []);
+  var result = await Process.run("ifconfig", ["-a"]);
   List<String> lines = result.stdout.split("\n");
   var ifaces = [];
   for (var line in lines) {
@@ -557,15 +559,26 @@ synchronize() async {
       "?value": addrs.join(",")
     };
 
+    var subnet = await getSubnetIp(iface);
+    var gateway = await getGatewayIp(iface);
+
     m["Subnet"] = {
       r"$type": "string",
-      "?value": await getSubnetIp(iface)
+      "?value": subnet
     };
 
     m["Gateway"] = {
       r"$type": "string",
-      "?value": await getGatewayIp(iface)
+      "?value": gateway
     };
+
+    if (Platform.isLinux) {
+      var dhcp = await isInterfaceDHCP(iface);
+      m["Type"] = {
+        r"$type": "string",
+        "?value": dhcp ? "DHCP" : "Static"
+      };
+    }
 
     m["Configure_Automatically"] = {
       r"$name": "Configure Automatically",
@@ -586,16 +599,19 @@ synchronize() async {
       r"$is": "configureNetworkManual",
       r"$params": [
         {
-          "name": "ip",
-          "type": "string"
+          "name": "addresses",
+          "type": "string",
+          "default": addrs.join(",")
         },
         {
           "name": "subnet",
-          "type": "string"
+          "type": "string",
+          "default": subnet
         },
         {
           "name": "gateway",
-          "type": "string"
+          "type": "string",
+          "default": gateway
         }
       ],
       r"$columns": [
@@ -634,11 +650,13 @@ synchronize() async {
         r"$params": [
           {
             "name": "ssid",
-            "type": "string"
+            "type": "string",
+            "placeholder": "MyNetwork"
           },
           {
             "name": "password",
-            "type": "string"
+            "type": "string",
+            "placeholder": "!NetworkPassword!"
           }
         ],
         r"$columns": [
@@ -686,6 +704,21 @@ synchronize() async {
       link.val("/Support/Status", true);
     }
   }
+}
+
+Future<bool> isInterfaceDHCP(String iface) async {
+  if (!Platform.isLinux) {
+    return false;
+  }
+
+  var script = await NetworkInterfaceScript.read();
+  var interface = script.getInterface(iface);
+
+  if (interface == null) {
+    return false;
+  }
+
+  return interface.address != null;
 }
 
 Future updateAccessPointSettings([ValueUpdate update]) async {

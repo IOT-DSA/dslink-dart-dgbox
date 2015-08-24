@@ -321,7 +321,10 @@ Future configureNetworkAutomatic(String interface) async {
   iface.address = null;
 
   await script.write();
-  return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+  return await restartNetworkService(
+      interface,
+      interface == "mlan0" || interface.startsWith("wlan")
+  );
 }
 
 Future restartNetworkService(String iface, [bool wlan = false]) async {
@@ -330,6 +333,7 @@ Future restartNetworkService(String iface, [bool wlan = false]) async {
   }
 
   await Process.run("ifdown", [iface]);
+  await new Future.delayed(const Duration(seconds: 1));
   var resultB = await Process.run("ifup", [iface]);
 
   if (wlan && await isProbablyDGBox()) {
@@ -418,6 +422,20 @@ class WifiConfig {
     buff.writeln("}");
     return buff.toString();
   }
+}
+
+Future<bool> isInterfaceUp(String iface) async {
+  if (!Platform.isLinux) {
+    return true;
+  }
+
+  var file = new File("/sys/class/net/${iface}/operstate");
+
+  if (!(await file.exists())) {
+    return false;
+  }
+
+  return (await file.readAsString()).contains("up");
 }
 
 class NetworkInterfaceScript {
@@ -603,7 +621,7 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
 
     return networks;
   } else {
-    var result = await Process.run("iwlist", [interface, "scan"]);
+    var result = await Process.run("iwlist", [interface, "scanning"]);
 
     if (result.exitCode != 0) {
       return [];
