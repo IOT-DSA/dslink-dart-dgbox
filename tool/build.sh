@@ -6,5 +6,9 @@ pub upgrade
 dart2js bin/run.dart -o build/bin/run.dart --output-type=dart --categories=Server
 cp dslink.json build/dslink.json
 cp -R tools build/tools
-#cd build/
-#zip -r cp ../../../files/host.zip .
+
+if [ -z "${1}" ]
+then
+  cd build/
+  zip -r cp ../../../files/host.zip .
+fi
