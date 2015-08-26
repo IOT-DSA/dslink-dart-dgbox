@@ -720,6 +720,23 @@ Future<List<String>> getCurrentNameServers() async {
       .toList();
 }
 
+Future<bool> setCurrentNameServers(List<String> servers) async {
+  var file = new File("/etc/resolv.conf");
+
+  if (!(await file.parent.exists())) {
+    await file.parent.create(recursive: true);
+  }
+
+  var lines = (await file.readAsLines())
+    .map((x) => x.trim())
+    .toList();
+  lines.removeWhere((x) => x.startsWith("nameserver "));
+  servers.map((x) => "nameserver ${x}").forEach(lines.add);
+  await file.writeAsString(lines.join("\n"));
+
+  return true;
+}
+
 Future<String> getCurrentTimezone() async {
   var type = await FileSystemEntity.type("/etc/localtime", followLinks: false);
 
