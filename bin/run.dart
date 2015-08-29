@@ -608,7 +608,9 @@ synchronize() async {
 
       var infoFile = new File("tools/dreamplug/dgboxsupport.info");
 
-      if (link.getNode("/Support/Port") == null && await infoFile.exists()) {
+      var portNode = link.getNode("/Support/Port");
+
+      if ((portNode == null || !portNode.configs.containsKey(r"$type")) && await infoFile.exists()) {
         var content = await infoFile.readAsString();
         if (PORT_REGEXP.hasMatch(content)) {
           var port = int.parse(PORT_REGEXP.firstMatch(content).group(1));
