@@ -262,8 +262,7 @@ main(List<String> args) async {
       "shutdown": addAction((Map<String, dynamic> params) {
         System.shutdown();
       }),
-      "configureNetworkManual":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "configureNetworkManual": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         String addr = params["addresses"];
         List<String> addrs = addr.split(",");
@@ -272,22 +271,19 @@ main(List<String> args) async {
 
         return {"success": result};
       }),
-      "configureNetworkAutomatic":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "configureNetworkAutomatic": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         var result = await configureNetworkAutomatic(name);
 
         return {"success": result};
       }),
-      "scanWifiNetworks":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "scanWifiNetworks": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         var result = await scanWifiNetworks(name);
 
         return result.map((WifiNetwork x) => x.toRows());
       }),
-      "getNetworkAddresses":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "getNetworkAddresses": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         var interfaces = await NetworkInterface.list();
         var interface =
@@ -299,18 +295,15 @@ main(List<String> args) async {
 
         return interface.addresses.map((x) => {"address": x.address});
       }),
-      "getSubnetIp":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "getSubnetIp": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         return {"subnet": await getSubnetIp(name)};
       }),
-      "getGatewayIp":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "getGatewayIp": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         return {"gateway": await getGatewayIp(name)};
       }),
-      "setWifiNetwork":
-      addAction((Path path, Map<String, dynamic> params) async {
+      "setWifiNetwork": addAction((Path path, Map<String, dynamic> params) async {
         var name = new Path(path.parentPath).name;
         var ssid = params["ssid"];
         var password = params["password"];
@@ -327,6 +320,13 @@ main(List<String> args) async {
         await exec("bash", args: ["-c", cmd], writeToBuffer: true);
 
         return {"output": result.output, "exitCode": result.exitCode};
+      }),
+      "restartNetworkInterface": addAction((Path path, Map<String, dynamic> params) async {
+        var interface = path.parent.name;
+        return await restartNetworkService(
+          interface,
+          interface == "mlan0" || interface.startsWith("wlan")
+        );
       }),
       "listDirectory": addAction((Map<String, dynamic> params) async {
         var dir = new Directory(params["directory"]);
@@ -366,8 +366,7 @@ main(List<String> args) async {
 
         return {"success": true};
       }),
-      "startSupportConnection":
-      addAction((Map<String, dynamic> params) async {
+      "startSupportConnection": addAction((Map<String, dynamic> params) async {
         var result = await Process.run(
           "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
         if (result.exitCode == 1) {
@@ -523,6 +522,12 @@ synchronize() async {
       r"$result": "values"
     };
 
+    m["Restart"] = {
+      r"$invokable": "write",
+      r"$name": "Restart",
+      r"$is": "restartNetworkInterface"
+    };
+
     if (await isWifiInterface(iface)) {
       wifis.add(iface);
       m["Scan_Wifi_Networks"] = {
@@ -580,8 +585,7 @@ synchronize() async {
   }
 
   {
-    var result =
-    await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
+    var result = await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
     if (result.exitCode == 1) {
       link.val("/Support/Status", false);
     } else {

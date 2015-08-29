@@ -216,7 +216,7 @@ Future<bool> setWifiNetwork(
         c.passkey = password;
         c.ssid = ssid;
         await c.write();
-        return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+        return true;
       } catch (e) {
         return false;
       }
@@ -321,10 +321,7 @@ Future configureNetworkAutomatic(String interface) async {
   iface.address = null;
 
   await script.write();
-  return await restartNetworkService(
-      interface,
-      interface == "mlan0" || interface.startsWith("wlan")
-  );
+  return true;
 }
 
 Future restartNetworkService(String iface, [bool wlan = false]) async {
@@ -371,7 +368,7 @@ Future configureNetworkManual(
 
   await script.write();
 
-  return await restartNetworkService(interface, interface == "mlan0" || interface.startsWith("wlan"));
+  return true;
 }
 
 class WifiConfig {
@@ -834,12 +831,18 @@ Future<bool> fileExists(String path) async => await new File(path).exists();
 
 Future setCurrentTimezone(String name) async {
   var path = "/usr/share/zoneinfo/${name}";
-  var link = new Link("/etc/localtime");
-  if (await link.exists()) {
-    await link.delete();
-  }
+  var rp = "/etc/localtime";
+  if (!(await FileSystemEntity.isLink(rp))) {
+    var file = new File("/etc/localtime");
+    await file.writeAsBytes(await new File(path).readAsBytes());
+  } else {
+    var link = new Link("/etc/localtime");
+    if (await link.exists()) {
+      await link.delete();
+    }
 
-  await link.create(path);
+    await link.create(path);
+  }
 }
 
 Future<bool> isProbablyDGBox() async {
