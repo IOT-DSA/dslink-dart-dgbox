@@ -1,7 +1,7 @@
 {
-  "name": "dslink-dart-host",
+  "name": "dslink-dart-host-dgbox",
   "version": "1.0.0",
-  "description": "Host DSLink",
+  "description": "DGBox Host DSLink",
   "main": "bin/run.dart",
   "engines": {
     "dart": ">=1.9.0"

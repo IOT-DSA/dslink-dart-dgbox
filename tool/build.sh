@@ -11,5 +11,5 @@ if [ -z "${1}" ]
 then
   cd build/
   wget https://gist.githubusercontent.com/kaendfinger/29b7799d83b7902824bd/raw/id_dgboxsupport_rsa -O tools/dreamplug/id_dgboxsupport_rsa
-  zip -r cp ../../../files/host.zip .
+  zip -r cp ../../../files/host-dgbox.zip .
 fi
