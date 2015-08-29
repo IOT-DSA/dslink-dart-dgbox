@@ -182,7 +182,10 @@ main(List<String> args) async {
         r"$invokable": "write",
         r"$result": "values"
       },
-      "Status": {r"$type": "bool", "?value": false}
+      "Status": {
+        r"$type": "bool",
+        "?value": false
+      }
     },
     "Access_Point": {
       r"$name": "Access Point",
@@ -597,11 +600,29 @@ synchronize() async {
         await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
     if (result.exitCode == 1) {
       link.val("/Support/Status", false);
+      try {
+        link.removeNode("/Support/Port");
+      } catch (e) {}
     } else {
       link.val("/Support/Status", true);
+
+      var infoFile = new File("tools/dreamplug/dgboxsupport.info");
+
+      if (link.getNode("/Support/Port") == null && await infoFile.exists()) {
+        var content = await infoFile.readAsString();
+        if (PORT_REGEXP.hasMatch(content)) {
+          var port = int.parse(PORT_REGEXP.firstMatch(content).group(1));
+          link.addNode("/Support/Port", {
+            r"$type": "int",
+            "?value": port
+          });
+        }
+      }
     }
   }
 }
+
+RegExp PORT_REGEXP = new RegExp(r"port (\d+)");
 
 Future updateAccessPointSettings([ValueUpdate update]) async {
   var ip = link.val("/Access_Point/IP");
