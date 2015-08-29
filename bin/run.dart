@@ -55,9 +55,9 @@ verifyDependencies() async {
 
   if (await findExecutable("hotspotd") == null && !(await isProbablyDGBox())) {
     var result = await exec("python2",
-      args: ["setup.py", "install"],
-      workingDirectory: "tools/hotspotd",
-      writeToBuffer: true);
+        args: ["setup.py", "install"],
+        workingDirectory: "tools/hotspotd",
+        writeToBuffer: true);
     if (result.exitCode != 0) {
       print("Failed to install hotspotd:");
       stdout.write(result.output);
@@ -72,7 +72,7 @@ verifyDependencies() async {
 }
 
 String generateHotspotDaemonConfig(String wifi, String internet, String ssid,
-  String ip, String netmask, String password) {
+    String ip, String netmask, String password) {
   return JSON.encode({
     "wlan": wifi,
     "inet": internet,
@@ -243,155 +243,162 @@ main(List<String> args) async {
   }
 
   link = new LinkProvider(args, "Host-",
-    defaultNodes: map,
-    profiles: {
-      "reboot": addAction((Map<String, dynamic> params) {
-        System.reboot();
-      }),
-      "startAccessPoint": addAction((Map<String, dynamic> params) async {
-        await startAccessPoint();
-      }),
-      "stopAccessPoint": addAction((Map<String, dynamic> params) async {
-        await stopAccessPoint();
-      }),
-      "restartAccessPoint": addAction((Map<String, dynamic> params) async {
-        await stopAccessPoint();
-        await new Future.delayed(const Duration(seconds: 5));
-        await startAccessPoint();
-      }),
-      "shutdown": addAction((Map<String, dynamic> params) {
-        System.shutdown();
-      }),
-      "configureNetworkManual": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        String addr = params["addresses"];
-        List<String> addrs = addr.split(",");
-        var result = await configureNetworkManual(
-          name, addrs.first, params["subnet"], params["gateway"]);
+      defaultNodes: map,
+      profiles: {
+        "reboot": addAction((Map<String, dynamic> params) {
+          System.reboot();
+        }),
+        "startAccessPoint": addAction((Map<String, dynamic> params) async {
+          await startAccessPoint();
+        }),
+        "stopAccessPoint": addAction((Map<String, dynamic> params) async {
+          await stopAccessPoint();
+        }),
+        "restartAccessPoint": addAction((Map<String, dynamic> params) async {
+          await stopAccessPoint();
+          await new Future.delayed(const Duration(seconds: 5));
+          await startAccessPoint();
+        }),
+        "shutdown": addAction((Map<String, dynamic> params) {
+          System.shutdown();
+        }),
+        "configureNetworkManual":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          String addr = params["addresses"];
+          List<String> addrs = addr.split(",");
+          var result = await configureNetworkManual(
+              name, addrs.first, params["subnet"], params["gateway"]);
 
-        return {"success": result};
-      }),
-      "configureNetworkAutomatic": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        var result = await configureNetworkAutomatic(name);
+          return {"success": result};
+        }),
+        "configureNetworkAutomatic":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          var result = await configureNetworkAutomatic(name);
 
-        return {"success": result};
-      }),
-      "scanWifiNetworks": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        var result = await scanWifiNetworks(name);
+          return {"success": result};
+        }),
+        "scanWifiNetworks":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          var result = await scanWifiNetworks(name);
 
-        return result.map((WifiNetwork x) => x.toRows());
-      }),
-      "getNetworkAddresses": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        var interfaces = await NetworkInterface.list();
-        var interface =
-        interfaces.firstWhere((x) => x.name == name, orElse: () => null);
+          return result.map((WifiNetwork x) => x.toRows());
+        }),
+        "getNetworkAddresses":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          var interfaces = await NetworkInterface.list();
+          var interface =
+              interfaces.firstWhere((x) => x.name == name, orElse: () => null);
 
-        if (interface == null) {
-          return [];
-        }
+          if (interface == null) {
+            return [];
+          }
 
-        return interface.addresses.map((x) => {"address": x.address});
-      }),
-      "getSubnetIp": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        return {"subnet": await getSubnetIp(name)};
-      }),
-      "getGatewayIp": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        return {"gateway": await getGatewayIp(name)};
-      }),
-      "setWifiNetwork": addAction((Path path, Map<String, dynamic> params) async {
-        var name = new Path(path.parentPath).name;
-        var ssid = params["ssid"];
-        var password = params["password"];
+          return interface.addresses.map((x) => {"address": x.address});
+        }),
+        "ifaceType": (String path) => new InterfaceTypeNode(path),
+        "getSubnetIp":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          return {"subnet": await getSubnetIp(name)};
+        }),
+        "getGatewayIp":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          return {"gateway": await getGatewayIp(name)};
+        }),
+        "setWifiNetwork":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var name = new Path(path.parentPath).name;
+          var ssid = params["ssid"];
+          var password = params["password"];
 
-        return {"success": await setWifiNetwork(name, ssid, password)};
-      }),
-      "setCurrentTimezone": addAction((Map<String, dynamic> params) async {
-        await setCurrentTimezone(params["timezone"]);
-        await updateTimezone();
-      }),
-      "executeCommand": addAction((Map<String, dynamic> params) async {
-        var cmd = params["command"];
-        var result =
-        await exec("bash", args: ["-c", cmd], writeToBuffer: true);
+          return {"success": await setWifiNetwork(name, ssid, password)};
+        }),
+        "setCurrentTimezone": addAction((Map<String, dynamic> params) async {
+          await setCurrentTimezone(params["timezone"]);
+          await updateTimezone();
+        }),
+        "executeCommand": addAction((Map<String, dynamic> params) async {
+          var cmd = params["command"];
+          var result =
+              await exec("bash", args: ["-c", cmd], writeToBuffer: true);
 
-        return {"output": result.output, "exitCode": result.exitCode};
-      }),
-      "restartNetworkInterface": addAction((Path path, Map<String, dynamic> params) async {
-        var interface = path.parent.name;
-        return await restartNetworkService(
-          interface,
-          interface == "mlan0" || interface.startsWith("wlan")
-        );
-      }),
-      "listDirectory": addAction((Map<String, dynamic> params) async {
-        var dir = new Directory(params["directory"]);
+          return {"output": result.output, "exitCode": result.exitCode};
+        }),
+        "restartNetworkInterface":
+            addAction((Path path, Map<String, dynamic> params) async {
+          var interface = path.parent.name;
+          return await restartNetworkService(
+              interface, interface == "mlan0" || interface.startsWith("wlan"));
+        }),
+        "networkAddress": (String path) => new AddressNode(path),
+        "listDirectory": addAction((Map<String, dynamic> params) async {
+          var dir = new Directory(params["directory"]);
 
-        try {
-          return dir.list().asyncMap((x) async {
-            return {
-              "name": x.path
-                .split("/")
-                .last,
-              "path": x.path,
-              "type": fseType(x)
-            };
-          }).toList();
-        } catch (e) {
-          return [];
-        }
-      }),
-      "subnet": (String path) => new SubnetNode(path),
-      "gateway": (String path) => new GatewayNode(path),
-      "setDateTime": addAction((Map<String, dynamic> params) async {
-        try {
-          var time = DateTime.parse(params["time"]);
-          var result = await Process.run("date", [createSystemTime(time)]);
-          return {"success": result.exitCode == 0, "message": ""};
-        } catch (e) {
-          return {"success": false, "message": e.toString()};
-        }
-      }),
-      "enableCaptivePortal": addAction((Map<String, dynamic> params) async {
-        var conf = await readCaptivePortalConfig();
-        conf = removeCaptivePortalConfig(conf);
-        var cpn = await getAccessPointConfig();
-        if (cpn != null && cpn.containsKey("ip")) {
-          conf += "\n" + getDnsMasqCaptivePortal(cpn["ip"]);
-        }
-        await writeCaptivePortalConfig(conf);
-        await restartDnsMasq();
+          try {
+            return dir.list().asyncMap((x) async {
+              return {
+                "name": x.path.split("/").last,
+                "path": x.path,
+                "type": fseType(x)
+              };
+            }).toList();
+          } catch (e) {
+            return [];
+          }
+        }),
+        "subnet": (String path) => new SubnetNode(path),
+        "gateway": (String path) => new GatewayNode(path),
+        "setDateTime": addAction((Map<String, dynamic> params) async {
+          try {
+            var time = DateTime.parse(params["time"]);
+            var result = await Process.run("date", [createSystemTime(time)]);
+            return {"success": result.exitCode == 0, "message": ""};
+          } catch (e) {
+            return {"success": false, "message": e.toString()};
+          }
+        }),
+        "enableCaptivePortal": addAction((Map<String, dynamic> params) async {
+          var conf = await readCaptivePortalConfig();
+          conf = removeCaptivePortalConfig(conf);
+          var cpn = await getAccessPointConfig();
+          if (cpn != null && cpn.containsKey("ip")) {
+            conf += "\n" + getDnsMasqCaptivePortal(cpn["ip"]);
+          }
+          await writeCaptivePortalConfig(conf);
+          await restartDnsMasq();
 
-        return {"success": true};
-      }),
-      "startSupportConnection": addAction((Map<String, dynamic> params) async {
-        var result = await Process.run(
-          "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
-        if (result.exitCode == 1) {
-          await exec("bash", args: ["tools/dreamplug/connect.sh"]);
-        }
-      }),
-      "stopSupportConnection": addAction((Map<String, dynamic> params) async {
-        var result = await Process.run(
-          "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
-        if (result.exitCode == 0) {
-          await exec("pkill", args: ["-f", "autossh.*id_dgboxsupport_rsa"]);
-        }
-      }),
-      "disableCaptivePortal": addAction((Map<String, dynamic> params) async {
-        var conf = await readCaptivePortalConfig();
-        conf = removeCaptivePortalConfig(conf);
-        await writeCaptivePortalConfig(conf);
-        await restartDnsMasq();
+          return {"success": true};
+        }),
+        "startSupportConnection":
+            addAction((Map<String, dynamic> params) async {
+          var result = await Process.run(
+              "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
+          if (result.exitCode == 1) {
+            await exec("bash", args: ["tools/dreamplug/connect.sh"]);
+          }
+        }),
+        "stopSupportConnection": addAction((Map<String, dynamic> params) async {
+          var result = await Process.run(
+              "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
+          if (result.exitCode == 0) {
+            await exec("pkill", args: ["-f", "autossh.*id_dgboxsupport_rsa"]);
+          }
+        }),
+        "disableCaptivePortal": addAction((Map<String, dynamic> params) async {
+          var conf = await readCaptivePortalConfig();
+          conf = removeCaptivePortalConfig(conf);
+          await writeCaptivePortalConfig(conf);
+          await restartDnsMasq();
 
-        return {"success": true};
-      })
-    },
-    autoInitialize: false);
+          return {"success": true};
+        })
+      },
+      autoInitialize: false);
 
   link.init();
   link.connect();
@@ -457,14 +464,14 @@ synchronize() async {
 
   for (SimpleNode child in ethernetNode.children.values) {
     if (child.configs[r"$host_network"] != null &&
-      !ifaces.contains(child.configs[r"$host_network"])) {
+        !ifaces.contains(child.configs[r"$host_network"])) {
       ethernetNode.removeChild(child);
     }
   }
 
   for (SimpleNode child in wirelessNode.children.values) {
     if (child.configs[r"$host_network"] != null &&
-      !ifaces.contains(child.configs[r"$host_network"])) {
+        !ifaces.contains(child.configs[r"$host_network"])) {
       wirelessNode.removeChild(child);
     }
   }
@@ -477,106 +484,104 @@ synchronize() async {
       continue;
     }
 
-    var m = {};
+    var isWifi = await isWifiInterface(iface);
 
-    names.add(iface);
+    var tp = "/${isWifi ? 'Wireless' : 'Ethernet'}/${iface}";
 
-    m[r"$host_network"] = iface;
+    if (link.getNode(tp) != null) {
+      if (isWifi) {
+        var ssid = await getWifiNetwork(iface);
+        link.val("${tp}/SSID", ssid);
+      }
 
-    var addrs = await getNetworkAddresses(iface);
+      var typeOfConfig = await isInterfaceDHCP(iface) ? "DHCP" : "Static";
+      link.val("${tp}/Type", typeOfConfig);
 
-    m["Addresses"] = {
-      r"$type": "string",
-      "?value": addrs.join(","),
-      r"$writable": "write"
-    };
+      var addrs = await getNetworkAddresses(iface);
+      link.val("${tp}/Address", addrs.isEmpty ? "" : addrs.first);
+      link.val("${tp}/Subnet", await getSubnetIp(iface));
+      link.val("${tp}/Gateway", await getGatewayIp(iface));
+    } else {
+      var m = {};
 
-    var subnet = await getSubnetIp(iface);
-    var gateway = await getGatewayIp(iface);
+      names.add(iface);
 
-    m["Subnet"] = {
-      r"$type": "string",
-      "?value": subnet,
-      r"$writable": "write",
-      r"$is": "subnet"
-    };
+      m[r"$host_network"] = iface;
 
-    m["Gateway"] = {
-      r"$type": "string",
-      "?value": gateway,
-      r"$writable": "write",
-      r"$is": "gateway"
-    };
+      var addrs = await getNetworkAddresses(iface);
 
-    if (Platform.isLinux) {
+      m["Address"] = {
+        r"$type": "string",
+        "?value": addrs.isEmpty ? "" : addrs.first,
+        r"$writable": "write",
+        r"$is": "networkAddress"
+      };
+
+      var subnet = await getSubnetIp(iface);
+      var gateway = await getGatewayIp(iface);
+
+      m["Subnet"] = {
+        r"$type": "string",
+        "?value": subnet,
+        r"$writable": "write",
+        r"$is": "subnet"
+      };
+
+      m["Gateway"] = {
+        r"$type": "string",
+        "?value": gateway,
+        r"$writable": "write",
+        r"$is": "gateway"
+      };
+
       var dhcp = await isInterfaceDHCP(iface);
       m["Type"] = {
-        r"$type": "string",
+        r"$type": "enum[DHCP,Static]",
         "?value": dhcp ? "DHCP" : "Static",
-        r"$writable": "write"
+        r"$writable": "write",
+        r"$is": "ifaceType"
       };
-    }
 
-    m["Restart"] = {
-      r"$invokable": "write",
-      r"$name": "Restart",
-      r"$is": "restartNetworkInterface"
-    };
-
-    if (await isWifiInterface(iface)) {
-      wifis.add(iface);
-      m["Scan_Wifi_Networks"] = {
-        r"$name": "Scan WiFi Networks",
+      m["Restart"] = {
         r"$invokable": "write",
-        r"$is": "scanWifiNetworks",
-        r"$result": "table",
-        r"$columns": [
-          {"name": "ssid", "type": "string"},
-          {"name": "hasSecurity", "type": "bool"}
-        ]
+        r"$name": "Restart",
+        r"$is": "restartNetworkInterface"
       };
 
-      m["Set_Wifi_Network"] = {
-        r"$name": "Set WiFi Network",
-        r"$invokable": "write",
-        r"$is": "setWifiNetwork",
-        r"$result": "values",
-        r"$params": [
-          {"name": "ssid", "type": "string", "placeholder": "MyNetwork"},
-          {
-            "name": "password",
-            "type": "string",
-            "placeholder": "!NetworkPassword!"
-          }
-        ],
-        r"$columns": [
-          {"name": "success", "type": "bool"}
-        ]
-      };
+      if (isWifi) {
+        wifis.add(iface);
+        m["Scan_Wifi_Networks"] = {
+          r"$name": "Scan WiFi Networks",
+          r"$invokable": "write",
+          r"$is": "scanWifiNetworks",
+          r"$result": "table",
+          r"$columns": [
+            {"name": "ssid", "type": "string"},
+            {"name": "hasSecurity", "type": "bool"}
+          ]
+        };
 
-      m["SSID"] = {r"$type": "string", "?value": await getWifiNetwork(iface)};
+        m["Set_Wifi_Network"] = {
+          r"$name": "Set WiFi Network",
+          r"$invokable": "write",
+          r"$is": "setWifiNetwork",
+          r"$result": "values",
+          r"$params": [
+            {"name": "ssid", "type": "string", "placeholder": "MyNetwork"},
+            {
+              "name": "password",
+              "type": "string",
+              "placeholder": "!NetworkPassword!"
+            }
+          ],
+          r"$columns": [
+            {"name": "success", "type": "bool"}
+          ]
+        };
 
-      if (wirelessNode.children.containsKey(iface)) {
-        var n = link.getNode("/Wireless/${iface}");
-        for (var x in m.keys) {
-          if (m[x] is Map && m[x].containsKey(r"$type")) {
-            n.getChild(x).updateValue(m[x]["?value"]);
-          }
-        }
-      } else {
-        link.addNode("/Wireless/${iface}", m);
+        m["SSID"] = {r"$type": "string", "?value": await getWifiNetwork(iface)};
       }
-    } else {
-      if (ethernetNode.children.containsKey(iface)) {
-        var n = link.getNode("/Ethernet/${iface}");
-        for (var x in m.keys) {
-          if (m[x] is Map && m[x].containsKey(r"$type")) {
-            n.getChild(x).updateValue(m[x]["?value"]);
-          }
-        }
-      } else {
-        var n = link.addNode("/Ethernet/${iface}", m);
-      }
+      link.addNode(tp, m);
     }
   }
 
@@ -588,7 +593,8 @@ synchronize() async {
   }
 
   {
-    var result = await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
+    var result =
+        await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
     if (result.exitCode == 1) {
       link.val("/Support/Status", false);
     } else {
@@ -613,13 +619,13 @@ Future updateAccessPointSettings([ValueUpdate update]) async {
 
 Future<String> getPythonModuleDirectory() async {
   var result = await exec("python2",
-    args: ["-"],
-    stdin: [
-      "import hotspotd.main",
-      "x = hotspotd.main.__file__.split('/')",
-      "print('/'.join(x[0:len(x) - 1]))"
-    ].join("\n"),
-    writeToBuffer: true);
+      args: ["-"],
+      stdin: [
+        "import hotspotd.main",
+        "x = hotspotd.main.__file__.split('/')",
+        "print('/'.join(x[0:len(x) - 1]))"
+      ].join("\n"),
+      writeToBuffer: true);
 
   return result.stdout.trim();
 }
@@ -679,7 +685,7 @@ class GatewayNode extends SimpleNode {
 
   @override
   Response setValue(Object val, Responder responder, Response response,
-    [int maxPermission = Permission.CONFIG]) {
+      [int maxPermission = Permission.CONFIG]) {
     if (val is! String) {
       return response..close();
     }
@@ -705,12 +711,43 @@ class GatewayNode extends SimpleNode {
   }
 }
 
+class AddressNode extends SimpleNode {
+  AddressNode(String path) : super(path);
+
+  @override
+  Response setValue(Object val, Responder responder, Response response,
+    [int maxPermission = Permission.CONFIG]) {
+    if (val is! String) {
+      return response..close();
+    }
+
+    var p = new Path(path).parent;
+    var iface = p.name;
+
+    try {
+      var addr = new InternetAddress(val);
+      new Future(() async {
+        if (await isInterfaceDHCP(iface)) {
+          response..close();
+          return;
+        }
+
+        await configureNetworkManual(iface, addr.address, null, null);
+        updateValue(addr.address);
+      });
+    } catch (e) {
+      return response..close();
+    }
+    return response;
+  }
+}
+
 class SubnetNode extends SimpleNode {
   SubnetNode(String path) : super(path);
 
   @override
   Response setValue(Object val, Responder responder, Response response,
-    [int maxPermission = Permission.CONFIG]) {
+      [int maxPermission = Permission.CONFIG]) {
     if (val is! String) {
       return response..close();
     }
@@ -736,8 +773,43 @@ class SubnetNode extends SimpleNode {
   }
 }
 
+class InterfaceTypeNode extends SimpleNode {
+  InterfaceTypeNode(String path) : super(path);
+
+  @override
+  Response setValue(Object val, Responder responder, Response response,
+    [int maxPermission = Permission.CONFIG]) {
+    if (val is! String || (val != "DHCP" && val != "Static")) {
+      return response..close();
+    }
+
+    var p = new Path(path).parent;
+    var iface = p.name;
+
+    try {
+      new Future(() async {
+        var isDHCP = await isInterfaceDHCP(iface);
+        if (isDHCP && val == "DHCP" || (!isDHCP && val == "Static")) {
+          response..close();
+          return;
+        }
+
+        if (val == "DHCP") {
+          await configureNetworkAutomatic(iface);
+        } else {
+          await configureNetworkManual(iface, "192.168.2.90", "255.255.255.0", "192.168.2.1");
+        }
+        updateValue(val);
+      });
+    } catch (e) {
+      return response..close();
+    }
+    return response;
+  }
+}
+
 Future setAccessPointConfig(String ssid, String password, String ip,
-  [String wifi, String internet]) async {
+    [String wifi, String internet]) async {
   if (await isProbablyDGBox()) {
     var uapConfig = [
       "ADDRESS=${ip}",
@@ -771,7 +843,7 @@ Future setAccessPointConfig(String ssid, String password, String ip,
   }
 
   var config = generateHotspotDaemonConfig(
-    wifi, internet, ssid, ip, "255.255.255.0", password);
+      wifi, internet, ssid, ip, "255.255.255.0", password);
 
   var file = new File("${await getPythonModuleDirectory()}/hotspotd.json");
   if (!(await file.exists())) {
@@ -782,13 +854,21 @@ Future setAccessPointConfig(String ssid, String password, String ip,
 }
 
 Future<List<String>> getNetworkAddresses(String name) async {
+  if (await isProbablyDGBox()) {
+    var script = await NetworkInterfaceScript.read();
+    var iface = script.getInterface(name);
+    if (iface != null && iface.address != null) {
+      return [iface.address];
+    }
+  }
+
   var interfaces = await NetworkInterface.list();
   var interface =
-  interfaces.firstWhere((x) => x.name == name, orElse: () => null);
+      interfaces.firstWhere((x) => x.name == name, orElse: () => null);
 
   if (interface == null) {
     return [];
   }
 
-  return interface.addresses.map((x) => x.address).toList();
+  return interface.addresses.map((x) => x.address).where((x) => x != null).toList();
 }

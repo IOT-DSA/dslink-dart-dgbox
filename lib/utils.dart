@@ -216,7 +216,8 @@ Future<bool> setWifiNetwork(
         c.passkey = password;
         c.ssid = ssid;
         await c.write();
-        return true;
+        var result = await Process.run("bash", ["tools/dreamplug/wireless.sh", "client"]);
+        return result.exitCode == 0;
       } catch (e) {
         return false;
       }
@@ -373,10 +374,6 @@ Future configureNetworkManual(
   if (ip != null) {
     iface.address = ip;
   }
-
-  iface.netmask = netmask;
-  iface.gateway = gateway;
-  iface.address = ip;
 
   await script.write();
 
@@ -576,6 +573,15 @@ Future<String> getWifiNetwork(String interface) async {
       return result.stdout.trim().replaceAll("Current Wi-Fi Network: ", "");
     }
   } else {
+    if (await isProbablyDGBox()) {
+      try {
+        var conf = await WifiConfig.read();
+        if (conf.ssid != null) {
+          return conf.ssid;
+        }
+      } catch (e) {}
+    }
+
     var result = await Process.run("iwconfig", [interface]);
     if (result.exitCode != 0) {
       return null;
@@ -630,43 +636,37 @@ Future<List<WifiNetwork>> scanWifiNetworks(String interface) async {
 
     return networks;
   } else {
-    var result = await Process.run("iwlist", [interface, "scanning"]);
+    var result = await Process.run("iwlist", [interface, "scan"]);
 
     if (result.exitCode != 0) {
       return [];
     }
 
-    List<String> lines = result.stdout.split("\n");
-    lines.removeAt(0);
+    String out = result.stdout;
 
-    var buff = [];
+    var parts = out.split("Extra:");
     var networks = [];
-    for (var line in lines) {
-      if (line.trim().isEmpty) {
+
+    for (var part in parts) {
+      if (!part.contains("ESSID:")) {
         continue;
       }
 
-      if (buff.isEmpty && line.trim().startsWith("Cell ")) {
+      var matches = SSID_REGEXP.allMatches(part);
+      if (matches.isEmpty) {
         continue;
       }
 
-      if (line.trim().startsWith("Cell ") || line == lines.last) {
-        var content = buff.join("\n");
-        var regex = new RegExp(r'ESSID\:"(.*)"');
-        var ssid = regex.firstMatch(content).group(1);
-        var hasSecurity = content.contains("Encryption key:on");
-        var network = new WifiNetwork(ssid, hasSecurity);
-        networks.add(network);
-        buff.clear();
-        continue;
-      }
-
-      buff.add(line);
+      var ssid = matches.first.group(1);
+      var hasSecurity = part.contains("Encryption key:on");
+      networks.add(new WifiNetwork(ssid, hasSecurity));
     }
 
     return networks;
   }
 }
+
+final RegExp SSID_REGEXP = new RegExp(r'ESSID:"(.*)"');
 
 Future<String> getCurrentWifiNetwork(String iface) async {
   if (Platform.isLinux) {
@@ -1011,7 +1011,7 @@ Future<bool> isInterfaceDHCP(String iface) async {
     return false;
   }
 
-  return interface.address != null;
+  return interface.address == null;
 }
 
 String reflix(String n) {
