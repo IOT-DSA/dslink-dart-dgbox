@@ -362,6 +362,18 @@ Future configureNetworkManual(
     return false;
   }
 
+  if (netmask != null) {
+    iface.netmask = netmask;
+  }
+
+  if (gateway != null) {
+    iface.gateway = gateway;
+  }
+
+  if (ip != null) {
+    iface.address = ip;
+  }
+
   iface.netmask = netmask;
   iface.gateway = gateway;
   iface.address = ip;
@@ -962,24 +974,44 @@ Future<String> getSubnetIp(String interface) async {
       return "unknown";
     }
 
-    var ro = await Process.run("route", ["-n"]);
-    List<String> lines = ro.stdout.toString().split("\n");
-    for (var line in lines) {
-      var parts = reflix(line).split(" ");
-      parts = parts.map((x) => x.trim()).toList();
-      parts.removeWhere((x) => x.isEmpty);
+    if (await isInterfaceDHCP(interface)) {
+      var ro = await Process.run("route", ["-n"]);
+      List<String> lines = ro.stdout.toString().split("\n");
+      for (var line in lines) {
+        var parts = reflix(line).split(" ");
+        parts = parts.map((x) => x.trim()).toList();
+        parts.removeWhere((x) => x.isEmpty);
 
-      if (parts.length < 7) {
-        continue;
-      }
+        if (parts.length < 7) {
+          continue;
+        }
 
-      var iface = parts[7];
-      if (iface == interface && parts[2] != "0.0.0.0") {
-        return parts[2];
+        var iface = parts[7];
+        if (iface == interface && parts[2] != "0.0.0.0") {
+          return parts[2];
+        }
       }
+    } else {
+      var m = await NetworkInterfaceScript.read();
+      return m.getInterface(interface).netmask;
     }
   } catch (e) {}
   return "0.0.0.0";
+}
+
+Future<bool> isInterfaceDHCP(String iface) async {
+  if (!Platform.isLinux) {
+    return false;
+  }
+
+  var script = await NetworkInterfaceScript.read();
+  var interface = script.getInterface(iface);
+
+  if (interface == null) {
+    return false;
+  }
+
+  return interface.address != null;
 }
 
 String reflix(String n) {

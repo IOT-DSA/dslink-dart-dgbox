@@ -345,6 +345,8 @@ main(List<String> args) async {
           return [];
         }
       }),
+      "subnet": (String path) => new SubnetNode(path),
+      "gateway": (String path) => new GatewayNode(path),
       "setDateTime": addAction((Map<String, dynamic> params) async {
         try {
           var time = DateTime.parse(params["time"]);
@@ -483,44 +485,37 @@ synchronize() async {
 
     var addrs = await getNetworkAddresses(iface);
 
-    m["Addresses"] = {r"$type": "string", "?value": addrs.join(",")};
+    m["Addresses"] = {
+      r"$type": "string",
+      "?value": addrs.join(","),
+      r"$writable": "write"
+    };
 
     var subnet = await getSubnetIp(iface);
     var gateway = await getGatewayIp(iface);
 
-    m["Subnet"] = {r"$type": "string", "?value": subnet};
+    m["Subnet"] = {
+      r"$type": "string",
+      "?value": subnet,
+      r"$writable": "write",
+      r"$is": "subnet"
+    };
 
-    m["Gateway"] = {r"$type": "string", "?value": gateway};
+    m["Gateway"] = {
+      r"$type": "string",
+      "?value": gateway,
+      r"$writable": "write",
+      r"$is": "gateway"
+    };
 
     if (Platform.isLinux) {
       var dhcp = await isInterfaceDHCP(iface);
-      m["Type"] = {r"$type": "string", "?value": dhcp ? "DHCP" : "Static"};
+      m["Type"] = {
+        r"$type": "string",
+        "?value": dhcp ? "DHCP" : "Static",
+        r"$writable": "write"
+      };
     }
-
-    m["Configure_Automatically"] = {
-      r"$name": "Configure Automatically",
-      r"$invokable": "write",
-      r"$is": "configureNetworkAutomatic",
-      r"$result": "values",
-      r"$columns": [
-        {"name": "success", "type": "bool"}
-      ]
-    };
-
-    m["Configure_Manually"] = {
-      r"$name": "Configure Manually",
-      r"$invokable": "write",
-      r"$is": "configureNetworkManual",
-      r"$params": [
-        {"name": "addresses", "type": "string", "default": addrs.join(",")},
-        {"name": "subnet", "type": "string", "default": subnet},
-        {"name": "gateway", "type": "string", "default": gateway}
-      ],
-      r"$columns": [
-        {"name": "success", "type": "bool"}
-      ],
-      r"$result": "values"
-    };
 
     m["Restart"] = {
       r"$invokable": "write",
@@ -563,16 +558,24 @@ synchronize() async {
 
       if (wirelessNode.children.containsKey(iface)) {
         var n = link.getNode("/Wireless/${iface}");
-        n.load(m);
+        for (var x in m.keys) {
+          if (m[x] is Map && m[x].containsKey(r"$type")) {
+            n.getChild(x).updateValue(m[x]["?value"]);
+          }
+        }
       } else {
         link.addNode("/Wireless/${iface}", m);
       }
     } else {
       if (ethernetNode.children.containsKey(iface)) {
         var n = link.getNode("/Ethernet/${iface}");
-        n.load(m);
+        for (var x in m.keys) {
+          if (m[x] is Map && m[x].containsKey(r"$type")) {
+            n.getChild(x).updateValue(m[x]["?value"]);
+          }
+        }
       } else {
-        link.addNode("/Ethernet/${iface}", m);
+        var n = link.addNode("/Ethernet/${iface}", m);
       }
     }
   }
@@ -592,21 +595,6 @@ synchronize() async {
       link.val("/Support/Status", true);
     }
   }
-}
-
-Future<bool> isInterfaceDHCP(String iface) async {
-  if (!Platform.isLinux) {
-    return false;
-  }
-
-  var script = await NetworkInterfaceScript.read();
-  var interface = script.getInterface(iface);
-
-  if (interface == null) {
-    return false;
-  }
-
-  return interface.address != null;
 }
 
 Future updateAccessPointSettings([ValueUpdate update]) async {
@@ -684,6 +672,68 @@ Future<Map<String, dynamic>> getAccessPointConfig() async {
     "password": json["password"],
     "netmask": json["netmask"]
   };
+}
+
+class GatewayNode extends SimpleNode {
+  GatewayNode(String path) : super(path);
+
+  @override
+  Response setValue(Object val, Responder responder, Response response,
+    [int maxPermission = Permission.CONFIG]) {
+    if (val is! String) {
+      return response..close();
+    }
+
+    var p = new Path(path).parent;
+    var iface = p.name;
+
+    try {
+      var addr = new InternetAddress(val);
+      new Future(() async {
+        if (await isInterfaceDHCP(iface)) {
+          response..close();
+          return;
+        }
+
+        await configureNetworkManual(iface, null, null, addr.address);
+        updateValue(addr.address);
+      });
+    } catch (e) {
+      return response..close();
+    }
+    return response;
+  }
+}
+
+class SubnetNode extends SimpleNode {
+  SubnetNode(String path) : super(path);
+
+  @override
+  Response setValue(Object val, Responder responder, Response response,
+    [int maxPermission = Permission.CONFIG]) {
+    if (val is! String) {
+      return response..close();
+    }
+
+    var p = new Path(path).parent;
+    var iface = p.name;
+
+    try {
+      var addr = new InternetAddress(val);
+      new Future(() async {
+        if (await isInterfaceDHCP(iface)) {
+          response..close();
+          return;
+        }
+
+        await configureNetworkManual(iface, null, addr.address, null);
+        updateValue(addr.address);
+      });
+    } catch (e) {
+      return response..close();
+    }
+    return response;
+  }
 }
 
 Future setAccessPointConfig(String ssid, String password, String ip,
