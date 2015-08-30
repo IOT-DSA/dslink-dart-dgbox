@@ -98,7 +98,7 @@ main(List<String> args) async {
     try {
       await getAccessPointConfig();
     } catch (e) {
-      await setAccessPointConfig("DGBox", "dg13ox11", "192.168.1.");
+      await setAccessPointConfig("DGBox", "dg13ox11", "192.168.1.1");
     }
   }
 
@@ -838,6 +838,11 @@ class InterfaceTypeNode extends SimpleNode {
 
 Future setAccessPointConfig(String ssid, String password, String ip,
     [String wifi, String internet]) async {
+  ip = ip.trim();
+  if (ip.endsWith(".")) {
+    ip = ip + "1";
+  }
+
   if (await isProbablyDGBox()) {
     var uapConfig = [
       "ADDRESS=${ip}",
@@ -853,9 +858,9 @@ Future setAccessPointConfig(String ssid, String password, String ip,
       "end\t${ml}.200",
       "interface\tuap0",
       "opt\tlease\t86400",
-      "opt\trouter\t${ml}.1",
+      "opt\trouter\t${ip}",
       "opt\tsubnet\t255.255.255.0",
-      "opt\tdns\t${ml}.1",
+      "opt\tdns\t${ip}",
       "opt\tdomain\tlocaldomain",
       "max_leases\t101",
       "lease_file\t/var/lib/udhcpd.leases",
