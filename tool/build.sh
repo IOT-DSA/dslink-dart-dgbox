@@ -8,5 +8,4 @@ cp dslink.json build/dslink.json
 cp -R tools build/tools
 cd build/
 chmod 600 tools/dreamplug/id_dgboxsupport_rsa
-cd ..
 zip -r ../../files/host-dgbox.zip .
