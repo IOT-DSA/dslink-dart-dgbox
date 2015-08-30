@@ -18,14 +18,14 @@ case "${1:-''}" in
 
   'base')
         echo Turning on base station
-        $SELF off
+        bash $SELF off
         /root/init_setup8787.sh
         /etc/init.d/udhcpd restart
         ;;
 
   'client')
         echo Starting wireless client
-        $SELF off
+        bash $SELF off
         wlan.sh
         /sbin/wpa_supplicant -i mlan0 -c /root/.mlan.conf -B
         ifup mlan0
