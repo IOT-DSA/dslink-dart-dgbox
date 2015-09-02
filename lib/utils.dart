@@ -839,6 +839,56 @@ Future installPackage(String pkg) async {
   }
 }
 
+class LedManager {
+  Map<String, int> _maxBrightnessCache = {};
+  Map<String, File> _ledFileCache = {};
+
+  Future<int> getMaxBrightness(String name) async {
+    if (_maxBrightnessCache.containsKey(name)) {
+      return _maxBrightnessCache[name];
+    }
+    var file = new File("/sys/class/leds/${name}/max_brightness");
+    var str = await file.readAsString();
+    str = str.trim();
+    var mb = int.parse(str);
+    return _maxBrightnessCache[name] = mb;
+  }
+
+  Future<int> getBrightness(String name) async {
+    File file;
+    if (_ledFileCache.containsKey(name)) {
+      file = _ledFileCache[name];
+    } else {
+      file = new File("/sys/class/leds/${name}/brightness");
+      _ledFileCache[name] = file;
+    }
+    var str = await file.readAsString();
+    return int.parse(str.trim());
+  }
+
+  Future setBrightness(String name, int brightness) async {
+    File file;
+    if (_ledFileCache.containsKey(name)) {
+      file = _ledFileCache[name];
+    } else {
+      file = new File("/sys/class/leds/${name}/brightness");
+      _ledFileCache[name] = file;
+    }
+    await file.writeAsString(brightness.toString());
+  }
+
+  Future<List<String>> list() async {
+    return await LINUX_LED_DIR.list()
+      .where((x) => x is Directory)
+      .map((x) => pathlib.basename(x.path))
+      .toList();
+  }
+}
+
+final LedManager ledManager = new LedManager();
+
+Directory LINUX_LED_DIR = new Directory("/sys/class/leds");
+
 Future<bool> fileExists(String path) async => await new File(path).exists();
 
 Future setCurrentTimezone(String name) async {
