@@ -435,7 +435,7 @@ main(List<String> args) async {
 
   link.onValueChange("/Name_Servers").listen((ValueUpdate update) async {
     try {
-      await setCurrentNameServers(update.value.split(","));
+      await setCurrentNameServers(update.value.toString().split(","));
     } catch (e) {}
   });
 
@@ -471,10 +471,12 @@ Future<List<String>> listNetworkInterfaces() async {
 }
 
 synchronize() async {
-  var nameservers = (await getCurrentNameServers()).join(",");
+  if (anyHasSubscribers("/", const ["Name_Servers"])) {
+    var nameservers = (await getCurrentNameServers()).join(",");
 
-  if (nameservers.isNotEmpty) {
-    link.updateValue("/Name_Servers", nameservers);
+    if (nameservers.isNotEmpty) {
+      link.updateValue("/Name_Servers", nameservers);
+    }
   }
 
   List<String> ifaces = await listNetworkInterfaces();
@@ -508,6 +510,16 @@ synchronize() async {
     var tp = "/${isWifi ? 'Wireless' : 'Ethernet'}/${iface}";
 
     if (link.getNode(tp) != null) {
+      if (!anyHasSubscribers(tp, const [
+        "SSID",
+        "Type",
+        "Address",
+        "Subnet",
+        "Gateway"
+      ])) {
+        continue;
+      }
+
       if (isWifi) {
         var ssid = await getWifiNetwork(iface);
         link.val("${tp}/SSID", ssid);
@@ -604,7 +616,9 @@ synchronize() async {
     }
   }
 
-  link.val("/Access_Point/Status", await isAccessPointOn());
+  if (anyHasSubscribers("/Access_Point", const ["Status"])) {
+    link.val("/Access_Point/Status", await isAccessPointOn());
+  }
 
   if (!(await isProbablyDGBox())) {
     link["/Access_Point/Internet"].configs[r"$type"] = buildEnumType(ifaces);
@@ -612,33 +626,37 @@ synchronize() async {
   }
 
   {
-    var result =
-    await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
-    if (result.exitCode == 1) {
-      link.val("/Support/Status", false);
-      try {
-        link.removeNode("/Support/Port");
-        SimpleNodeProvider p = link.provider;
-        p.nodes.remove("/Support/Port");
-      } catch (e) {}
-    } else {
-      link.val("/Support/Status", true);
+    if (anyHasSubscribers("/Support", const [
+      "Status",
+      "Port"
+    ])) {
+      var result = await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
+      if (result.exitCode == 1) {
+        link.val("/Support/Status", false);
+        try {
+          link.removeNode("/Support/Port");
+          SimpleNodeProvider p = link.provider;
+          p.nodes.remove("/Support/Port");
+        } catch (e) {}
+      } else {
+        link.val("/Support/Status", true);
 
-      var infoFile = new File("tools/dreamplug/dgboxsupport.info");
+        var infoFile = new File("tools/dreamplug/dgboxsupport.info");
 
-      var portNode = link.getNode("/Support/Port");
+        var portNode = link.getNode("/Support/Port");
 
-      if ((portNode == null ||
-        !portNode.configs.containsKey(r"$type") ||
-        portNode.configs.containsKey(r"$disconnectedTs")) &&
-        await infoFile.exists()) {
-        var content = await infoFile.readAsString();
-        if (PORT_REGEXP.hasMatch(content)) {
-          var port = int.parse(PORT_REGEXP.firstMatch(content).group(1));
-          link.addNode("/Support/Port", {
-            r"$type": "int",
-            "?value": port
-          });
+        if ((portNode == null ||
+          !portNode.configs.containsKey(r"$type") ||
+          portNode.configs.containsKey(r"$disconnectedTs")) &&
+          await infoFile.exists()) {
+          var content = await infoFile.readAsString();
+          if (PORT_REGEXP.hasMatch(content)) {
+            var port = int.parse(PORT_REGEXP.firstMatch(content).group(1));
+            link.addNode("/Support/Port", {
+              r"$type": "int",
+              "?value": port
+            });
+          }
         }
       }
     }
@@ -942,6 +960,24 @@ Future setAccessPointConfig(String ssid, String password, String ip,
   }
 
   await file.writeAsString(config);
+}
+
+bool anyHasSubscribers(String base, List<String> child) {
+  var p = new Path(base);
+
+  for (var c in child) {
+    var l = p.child(c);
+    var n = link.getNode(l.path);
+    if (n == null) {
+      continue;
+    }
+
+    if (n.hasSubscriber) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 Future<List<String>> getNetworkAddresses(String name) async {
