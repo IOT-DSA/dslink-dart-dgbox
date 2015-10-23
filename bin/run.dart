@@ -166,12 +166,6 @@ main(List<String> args) async {
         {"name": "type", "type": "string"}
       ]
     },
-    "Name_Servers": {
-      r"$name": "Nameservers",
-      r"$type": "string",
-      "?value": (await getCurrentNameServers()).join(","),
-      r"$writable": "write"
-    },
     "Support": {
       "Start": {
         r"$name": "Start",
@@ -229,7 +223,14 @@ main(List<String> args) async {
       },
       "Subnet": {r"$type": "string", "?value": accessPointConfig["netmask"]}
     },
-    "Ethernet": {},
+    "Ethernet": {
+      "Name_Servers": {
+        r"$name": "Nameservers",
+        r"$type": "string",
+        "?value": (await getCurrentNameServers()).join(","),
+        r"$writable": "write"
+      }
+    },
     "Wireless": {},
     "LEDs": {}
   };
@@ -446,7 +447,7 @@ main(List<String> args) async {
     link["/Access_Point/Interface"].subscribe(updateAccessPointSettings);
   }
 
-  link.onValueChange("/Name_Servers").listen((ValueUpdate update) async {
+  link.onValueChange("/Ethernet/Name_Servers").listen((ValueUpdate update) async {
     try {
       await setCurrentNameServers(update.value.toString().split(","));
     } catch (e) {}
@@ -484,11 +485,11 @@ Future<List<String>> listNetworkInterfaces() async {
 }
 
 synchronize() async {
-  if (anyHasSubscribers("/", const ["Name_Servers"])) {
+  if (anyHasSubscribers("/Ethernet", const ["Name_Servers"])) {
     var nameservers = (await getCurrentNameServers()).join(",");
 
     if (nameservers.isNotEmpty) {
-      link.updateValue("/Name_Servers", nameservers);
+      link.updateValue("/Ethernet/Name_Servers", nameservers);
     }
   }
 
