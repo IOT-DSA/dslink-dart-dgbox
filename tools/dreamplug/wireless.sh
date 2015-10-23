@@ -1,5 +1,5 @@
 #!/bin/bash
-SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
+SELF=${0}
 
 # Note: this script isn't very clean in that it doesn't check the current state before doing, e.g., rmmod and such.
 # Still, it works, and since this is called from MA the output can be suppressed, and no one will be the wiser.

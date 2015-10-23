@@ -12,6 +12,8 @@ typedef void OutputHandler(String str);
 
 Stdin get _stdin => stdin;
 
+Directory currentDir = Directory.current;
+
 class BetterProcessResult extends ProcessResult {
   final String output;
 
@@ -27,6 +29,10 @@ Future<BetterProcessResult> exec(String executable,
     OutputHandler outputHandler, File outputFile, bool inherit: false,
     bool writeToBuffer: false}) async {
   IOSink raf;
+
+  if (workingDirectory == null && currentDir != null) {
+    workingDirectory = currentDir.path;
+  }
 
   if (outputFile != null) {
     if (!(await outputFile.exists())) {
@@ -216,7 +222,7 @@ Future<bool> setWifiNetwork(
         c.passkey = password;
         c.ssid = ssid;
         await c.write();
-        var result = await Process.run("bash", ["tools/dreamplug/wireless.sh", "client"]);
+        var result = await Process.run("bash", ["${currentDir.path}/tools/dreamplug/wireless.sh", "client"]);
         return result.exitCode == 0;
       } catch (e) {
         return false;
@@ -241,7 +247,7 @@ Future<bool> setWifiNetwork(
 
 Future startAccessPoint() async {
   if (await isProbablyDGBox()) {
-    await exec("bash", args: ["tools/dreamplug/wireless.sh", "base"]);
+    await exec("bash", args: ["${currentDir.path}/tools/dreamplug/wireless.sh", "base"]);
   } else {
     await Process.run("hotspotd", ["start"]);
   }
@@ -249,7 +255,7 @@ Future startAccessPoint() async {
 
 Future stopAccessPoint() async {
   if (await isProbablyDGBox()) {
-    await exec("bash", args: ["tools/dreamplug/wireless.sh", "client"]);
+    await exec("bash", args: ["${currentDir.path}/tools/dreamplug/wireless.sh", "client"]);
   } else {
     await Process.run("hotspotd", ["stop"]);
     await Process.run("pkill", ["hostapd"]);
@@ -335,7 +341,7 @@ Future restartNetworkService(String iface, [bool wlan = false]) async {
   var resultB = await Process.run("ifup", [iface]);
 
   if (wlan && await isProbablyDGBox()) {
-    await exec("bash", args: ["tools/dreamplug/wireless.sh", "client"]);
+    await exec("bash", args: ["${currentDir.path}/tools/dreamplug/wireless.sh", "client"]);
   }
 
   return resultB.exitCode == 0;

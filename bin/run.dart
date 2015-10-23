@@ -6,12 +6,15 @@ import "package:dslink/dslink.dart" hide Link;
 import "package:dslink/nodes.dart";
 
 import "package:dslink_host/utils.dart";
+import "package:dslink/utils.dart";
 
 LinkProvider link;
 
 typedef Action(Map<String, dynamic> params);
 
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
+
+Directory currentDir;
 
 addAction(handler) {
   return (String path) {
@@ -56,7 +59,7 @@ verifyDependencies() async {
   if (await findExecutable("hotspotd") == null && !(await isProbablyDGBox())) {
     var result = await exec("python2",
       args: ["setup.py", "install"],
-      workingDirectory: "tools/hotspotd",
+      workingDirectory: "${currentDir.path}/tools/hotspotd",
       writeToBuffer: true);
     if (result.exitCode != 0) {
       print("Failed to install hotspotd:");
@@ -66,7 +69,7 @@ verifyDependencies() async {
   }
 
   if (await fileExists("/etc/rpi-issue")) {
-    var nf = new File("tools/hostapd_pi");
+    var nf = new File("${currentDir.path}/tools/hostapd_pi");
     await nf.copy("/usr/sbin/hostapd");
   }
 }
@@ -384,8 +387,9 @@ main(List<String> args) async {
       addAction((Map<String, dynamic> params) async {
         var result = await Process.run(
           "pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
-        if (result.exitCode == 1) {
-          await exec("bash", args: ["tools/dreamplug/connect.sh"]);
+        if (result.exitCode != 0) {
+          var cn = "${currentDir.path}/tools/dreamplug/connect.sh";
+          await Process.run("bash", [cn], workingDirectory: currentDir.path);
         }
       }),
       "stopSupportConnection": addAction((Map<String, dynamic> params) async {
@@ -406,6 +410,15 @@ main(List<String> args) async {
       "ledBrightness": (String path) => new LedBrightnessNode(path)
     },
     autoInitialize: false);
+
+  link.configure(optionsHandler: (opts) {
+    if (opts != null && opts["base-path"] != null) {
+      currentDir = new Directory(opts["base-path"]);
+    } else {
+      currentDir = Directory.current;
+    }
+    logger.info("Current Directory: ${currentDir.path}");
+  });
 
   link.init();
   link.connect();
@@ -641,7 +654,7 @@ synchronize() async {
       } else {
         link.val("/Support/Status", true);
 
-        var infoFile = new File("tools/dreamplug/dgboxsupport.info");
+        var infoFile = new File("${currentDir.path}/tools/dreamplug/dgboxsupport.info");
 
         var portNode = link.getNode("/Support/Port");
 
