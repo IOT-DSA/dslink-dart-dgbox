@@ -14,8 +14,6 @@ typedef Action(Map<String, dynamic> params);
 
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
-Directory currentDir;
-
 addAction(handler) {
   return (String path) {
     var p = new Path(path);
