@@ -180,6 +180,10 @@ main(List<String> args) async {
       "Status": {
         r"$type": "bool",
         "?value": false
+      },
+      "Port": {
+        r"$type": "int",
+        "?value": -1
       }
     },
     "Access_Point": {
@@ -644,11 +648,7 @@ synchronize() async {
       var result = await Process.run("pgrep", ["-f", "autossh.*id_dgboxsupport_rsa"]);
       if (result.exitCode == 1) {
         link.val("/Support/Status", false);
-        try {
-          link.removeNode("/Support/Port");
-          SimpleNodeProvider p = link.provider;
-          p.nodes.remove("/Support/Port");
-        } catch (e) {}
+        link.val("/Support/Port", -1);
       } else {
         link.val("/Support/Status", true);
 
@@ -658,15 +658,15 @@ synchronize() async {
 
         if ((portNode == null ||
           !portNode.configs.containsKey(r"$type") ||
-          portNode.configs.containsKey(r"$disconnectedTs")) &&
+          portNode.configs.containsKey(r"$disconnectedTs") ||
+          portNode.lastValueUpdate == null ||
+          portNode.lastValueUpdate.value == -1) &&
           await infoFile.exists()) {
           var content = await infoFile.readAsString();
           if (PORT_REGEXP.hasMatch(content)) {
             var port = int.parse(PORT_REGEXP.firstMatch(content).group(1));
-            link.addNode("/Support/Port", {
-              r"$type": "int",
-              "?value": port
-            });
+            print("Support Port: ${port}");
+            link.val("/Support/Port", port);
           }
         }
       }
@@ -1001,8 +1001,7 @@ Future<List<String>> getNetworkAddresses(String name) async {
   }
 
   var interfaces = await NetworkInterface.list();
-  var interface =
-  interfaces.firstWhere((x) => x.name == name, orElse: () => null);
+  var interface = interfaces.firstWhere((x) => x.name == name, orElse: () => null);
 
   if (interface == null) {
     return [];
