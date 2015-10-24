@@ -418,7 +418,6 @@ main(List<String> args) async {
     } else {
       currentDir = Directory.current;
     }
-    logger.info("Current Directory: ${currentDir.path}");
   });
 
   link.init();
