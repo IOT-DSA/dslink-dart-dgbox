@@ -427,7 +427,7 @@ class WifiConfig {
       buff.writeln('\t#psk="${passkey}"');
       var r = await Process.run("wpa_passphrase", [ssid, passkey]);
       String x = r.stdout.split("\n")[3].trim().split("=").last;
-      buff.writeln('\tpsk="${x}"');
+      buff.writeln('\tpsk=${x}');
     } else {
       buff.writeln("\tkey_mgmt=NONE");
     }
